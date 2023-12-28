@@ -133,12 +133,6 @@ namespace OpenTkVoxelEngine
             camera.OnMouseWheel(e);
         }
 
-        public override void OnResize(ResizeEventArgs e)
-        {
-            //Resize the viewport to the new window size
-            GL.Viewport(0, 0, e.Width, e.Height);
-        }
-
         public override void OnUnload()
         {
             defaultShader.Dispose();

@@ -83,13 +83,13 @@ namespace Engine
             Title = (1 / args.Time).ToString();
 
             //Allow for scene switching
-            if (IsKeyPressed(Keys.Right))
+            if (IsKeyPressed(Keys.Right) && IsKeyDown(Keys.LeftAlt))
             {
                 ActiveScene.SetActive(false);
                 ActiveScene = _scenes[1];
                 ActiveScene.SetActive(true);
             }
-            if (IsKeyPressed(Keys.Left))
+            if (IsKeyPressed(Keys.Left) && IsKeyDown(Keys.LeftAlt))
             {
                 ActiveScene.SetActive(false);
                 ActiveScene = _scenes[0];

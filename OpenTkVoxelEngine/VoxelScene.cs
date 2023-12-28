@@ -8,6 +8,7 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using GL = OpenTK.Graphics.OpenGL4.GL;
 
@@ -50,10 +51,11 @@ namespace OpenTkVoxelEngine
         void CreateShader()
         {
             rayShader = new Shader("raytrace.vert", "raytrace.frag");
-            computeShader = new ComputeShader("ray.compute");
+            computeShader = new ComputeShader("CreateUSDF.compute");
         }
 
-        int TextureWidth = 1920, TextureHeight = 1080;
+        int TextureWidth = 128, TextureHeight = 128;
+        int MaxRayDistance = 32;
         int _texture;
 
         void CreateTextures()
@@ -61,19 +63,30 @@ namespace OpenTkVoxelEngine
             //texture = Texture.LoadFromFile("smile.jpg", TextureUnit.Texture0);
             //texture.Use(TextureUnit.Texture0);
 
+            byte[] imageData = new byte[TextureWidth * TextureHeight];
 
+            for (int y = 0; y < TextureHeight; y++)
+            {
+                for (int x = 0; x < TextureWidth; x++)
+                {
+                    int index = (y * TextureWidth + x);
+                    imageData[index] = (byte)MaxRayDistance;
+
+                }
+            }
 
             _texture = GL.GenTexture();
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, _texture);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            GL.TexImage2D(TextureTarget.Texture2D,0,PixelInternalFormat.Rgba32f,TextureWidth,TextureHeight,0,PixelFormat.Rgba,PixelType.Float, (nint)null);
+            GL.TexImage2D(TextureTarget.Texture2D,0,PixelInternalFormat.R32ui,TextureWidth,TextureHeight,0,PixelFormat.RedInteger,PixelType.UnsignedByte, imageData);
 
-            GL.BindImageTexture(0,_texture,0,false,0,TextureAccess.ReadWrite,SizedInternalFormat.Rgba32f);
+            GL.BindImageTexture(0,_texture,0,false,0,TextureAccess.ReadWrite,SizedInternalFormat.R32ui);
 
             rayShader.SetInt("texture0",0);
         }
@@ -90,12 +103,12 @@ namespace OpenTkVoxelEngine
                 (rayShader.GetAttribLocation("aPosition"), 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), 0),
             });
 
-            ssbo = new SSBO();
+            /*ssbo = new SSBO();
             var test = OctreeNode.SizeOfNode();
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, ssbo._objectHandle);
             GL.BufferData(BufferTarget.ShaderStorageBuffer, svo.nodes.Count * OctreeNode.SizeOfNode(), svo.nodes.ToArray(), BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, ssbo._objectHandle);
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);*/
         }
 
         //Fix full screen triangle
@@ -105,6 +118,8 @@ namespace OpenTkVoxelEngine
             camera.OnUpdateFrame(args);
         }
 
+        bool hasRan = false;
+        Vector3 Offset = Vector3.Zero;
         public override void OnRenderFrame(FrameEventArgs args)
         {
             //Clear only the color buffer
@@ -115,17 +130,26 @@ namespace OpenTkVoxelEngine
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, _texture);
 
+
+            if (_window.IsKeyDown(Keys.Up)) Offset.Y -= (float)args.Time * 10f;
+            if (_window.IsKeyDown(Keys.Down)) Offset.Y += (float)args.Time * 10f;
+            if (_window.IsKeyDown(Keys.Left)) Offset.X += (float)args.Time * 10f;
+            if (_window.IsKeyDown(Keys.Right)) Offset.X -= (float)args.Time * 10f;
+
             computeShader.use();
+            computeShader.SetVec3("Offset", Offset);
 
+            /*
             computeShader.SetVec3("position",camera.Position());
-
             computeShader.SetVec3("CameraForward", camera.Forward());
             computeShader.SetVec3("CameraRight", camera.Right());
-            computeShader.SetVec3("CameraUp", camera.Up());
-            computeShader.SetInt("bufferSize",svo.nodes.Count);
+            computeShader.SetVec3("CameraUp", camera.Up());*/
 
-            GL.DispatchCompute(TextureWidth,TextureHeight,1);
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            if (!hasRan)
+            {
+                UpdateSDF();
+                //hasRan = true;
+            }
 
             rayShader.Use();
      
@@ -138,14 +162,17 @@ namespace OpenTkVoxelEngine
 
         }
 
+        void UpdateSDF()
+        {
+                GL.DispatchCompute((int)Math.Ceiling(TextureWidth / 8.0f), (int)Math.Ceiling(TextureHeight / 8.0f), 1);
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+        }
+
         public override void OnMouseWheel(MouseWheelEventArgs e)
         {
             camera.OnMouseWheel(e);
         }
 
-        public override void OnResize(ResizeEventArgs e)
-        {
-        }
 
         public override void OnUnload()
         {
@@ -161,7 +188,7 @@ namespace OpenTkVoxelEngine
             camera = new Camera(_window);
 
 
-            svo = new SVO(Vector3.UnitZ * 10f, Vector3.One * 20f, 3);
+            //svo = new SVO(Vector3.UnitZ * 10f, Vector3.One * 20f, 3);
 
 
             //Disable Z Depth Testing
