@@ -88,6 +88,12 @@ namespace OpenTkVoxelEngine
             GL.Uniform4(location, value);
         }
 
+        public void SetIVec3(string name, Vector3i value)
+        {
+            int location = GL.GetUniformLocation(_handle, name);
+            GL.Uniform3(location, value);
+        }
+
         public void SetVec3(string name, Vector3 value)
         {
             int location = GL.GetUniformLocation(_handle, name);
