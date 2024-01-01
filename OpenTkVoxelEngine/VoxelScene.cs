@@ -31,7 +31,7 @@ namespace OpenTkVoxelEngine
         //Shaders
         Shader rayShader;
         ComputeShader computeShader;
-
+        ComputeShader marchShader;
         //Camera
         Camera camera;
 
@@ -48,12 +48,15 @@ namespace OpenTkVoxelEngine
         {
             rayShader = new Shader("raytrace.vert", "raytrace.frag");
             computeShader = new ComputeShader("CreateUSDF.compute");
+            marchShader = new ComputeShader("USDFMarch.compute");
         }
 
-        int TextureWidth = 128, TextureHeight = 128, TextureDepth = 128;
+        int TextureWidth = 256, TextureHeight = 256, TextureDepth = 256;
+        int screenTextureWidth = 1024, screenTextureHeight = 1024;
+        float Resolution = .2f;
         int MaxRayDistance = 8;
-        int _texture;
-        int _screenTexture;
+        int _texture, _screenTexture;
+  
         void CreateTextures()
         {
     
@@ -73,6 +76,8 @@ namespace OpenTkVoxelEngine
             }
 
             _texture = GL.GenTexture();
+
+
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture3D, _texture);
 
@@ -81,13 +86,19 @@ namespace OpenTkVoxelEngine
 
             GL.TexParameter(TextureTarget.Texture3D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture3D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+
             GL.TexImage3D(TextureTarget.Texture3D,0,PixelInternalFormat.R32ui,TextureWidth,TextureHeight,TextureDepth,0,PixelFormat.RedInteger,PixelType.UnsignedByte, imageData);
+
+
 
             GL.BindImageTexture(0,_texture,0,false,0,TextureAccess.ReadWrite,SizedInternalFormat.R32ui);
 
-            rayShader.SetInt("texture0", 0);
+
+
 
             _screenTexture = GL.GenTexture();
+
             GL.ActiveTexture(TextureUnit.Texture1);
             GL.BindTexture(TextureTarget.Texture2D, _screenTexture);
 
@@ -96,14 +107,13 @@ namespace OpenTkVoxelEngine
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, TextureWidth, TextureHeight, 0, PixelFormat.Rgba, PixelType.UnsignedByte, (nint)null);
 
-            GL.BindImageTexture(1, _screenTexture, 0, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, screenTextureWidth, screenTextureHeight, 0, PixelFormat.Rgba, PixelType.UnsignedByte, 0);
+            
+            GL.BindImageTexture(1,_screenTexture,0,false,0,TextureAccess.ReadWrite,SizedInternalFormat.Rgba32f);
 
-            rayShader.SetInt("texture1", 1);
-
-
-
+            rayShader.SetInt("texture0", 0);
+            rayShader.SetInt("texturem1", 1);
 
         }
 
@@ -142,8 +152,15 @@ namespace OpenTkVoxelEngine
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture3D, _texture);
 
+            GL.ActiveTexture(TextureUnit.Texture1);
+            GL.BindTexture(TextureTarget.Texture2D, _screenTexture);
+
 
             computeShader.use();
+
+            computeShader.SetInt("currentDistance",MaxRayDistance);
+
+
 
             //Handles moving the noise
             if (_window.IsKeyDown(Keys.Up))
@@ -184,6 +201,22 @@ namespace OpenTkVoxelEngine
                 UpdateSDF();
             }
 
+
+            marchShader.use();
+
+
+            marchShader.SetVec3("CameraPos", camera.Position());
+            marchShader.SetVec3("CameraForward", camera.Forward());
+            marchShader.SetVec3("CameraRight", camera.Right());
+            marchShader.SetVec3("CameraUp", camera.Up());
+            marchShader.SetVec3("sdfTextureSize", new Vector3(TextureWidth,TextureHeight,TextureDepth));
+            marchShader.SetFloat("resolution", Resolution);
+
+ 
+
+            GL.DispatchCompute((int)Math.Ceiling(screenTextureWidth / 4.0f), (int)Math.Ceiling(screenTextureHeight / 4.0f), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+
             //Handles which layer of the texture to sample
             if (_window.IsKeyDown(Keys.Period))
             {
@@ -198,6 +231,8 @@ namespace OpenTkVoxelEngine
 
 
             rayShader.Use();
+            rayShader.SetInt("texture0", 0);
+            rayShader.SetInt("texturem1", 1);
             rayShader.SetFloat("layer",layer);
             rayShader.SetInt("maxdistance",MaxRayDistance);
 
@@ -212,14 +247,16 @@ namespace OpenTkVoxelEngine
 
         void UpdateSDF()
         {
+
             rayShader.Use();
             computeShader.use();
+
             computeShader.SetVec3("Offset", Offset);
             computeShader.SetIVec3("textureSize", new Vector3i(TextureWidth, TextureHeight, TextureDepth));
             computeShader.SetInt("distance", MaxRayDistance);
 
             GL.DispatchCompute((int)Math.Ceiling(TextureWidth / 4.0f), (int)Math.Ceiling(TextureHeight / 4.0f), (int)Math.Ceiling(TextureDepth / 4.0f));
-                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
         }
 
         public override void OnMouseWheel(MouseWheelEventArgs e)
@@ -244,10 +281,14 @@ namespace OpenTkVoxelEngine
             //Disable Z Depth Testing
             GL.Disable(EnableCap.DepthTest);
 
+
+
             CreateShader();
             CreateBuffers();
             CreateTextures();
+
             UpdateSDF();
+
         }
 
         public void SetActive(bool condition)

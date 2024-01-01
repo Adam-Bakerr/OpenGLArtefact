@@ -38,7 +38,7 @@ namespace OpenTkVoxelEngine
         float _speed = 2f;
         float _sensitivity = 1.0f;
 
-        Vector3 _position = -Vector3.UnitZ * 5;
+        Vector3 _position = Vector3.Zero;
         Vector3 _front = Vector3.UnitZ;
         Vector3 _up = Vector3.UnitY;
         Vector3 _right = Vector3.UnitX;
@@ -105,10 +105,10 @@ namespace OpenTkVoxelEngine
             //Clamp Pitch
             if (_pitch + deltaY > 89.0f)
             {
-                _pitch = 89.0f;
+                _pitch = 88.0f;
             }else if (_pitch - deltaY < -89.0f)
             {
-                _pitch = -89.0f;
+                _pitch = -88.0f;
             }
             else
             { 
