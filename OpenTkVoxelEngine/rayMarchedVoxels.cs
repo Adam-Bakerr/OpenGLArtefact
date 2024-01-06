@@ -24,15 +24,16 @@ namespace OpenTkVoxelEngine
         int IndexCount() => (_gridVertexCount.X - 1) * (_gridVertexCount.Y - 1);
 
         //Buffers
-        int _ssbo;
+        int _ssbo; // this acts as a vbo
         int _ebo;
         VAO _vao;
-        VBO _vbo;
 
         //Shaders
         Shader _terrainShader;
         ComputeShader _vertexCreationShader;
         ComputeShader _indexCreationShader;
+        ComputeShader _noiseApplicationShader;
+        ComputeShader _normalCalculationShader;
 
         //Camera
         Camera camera;
@@ -41,54 +42,25 @@ namespace OpenTkVoxelEngine
         string _fragmentPath = "erosionFrag.frag";
         string _createVertexComputePath = "createVertcies.compute";
         string _createIndicesComputePath = "createIndices.compute";
+        string _noiseApplicationComputePath = "noiseApplication.compute";
+        string _normalCalculationComputePath = "normalCalculation.compute";
 
-
-        struct vertex
-        {
-            public Vector4 Pos;
-            public Vector4 Color;
-            public Vector4 Normal;
-
-            public vertex(Vector4 pos, Vector4 color , Vector4 normal )
-            {
-                Pos = pos;
-                Color = color;
-                Normal = normal;
-            }
-        }
-
-
-        vertex[] vertices =
-        {
-            new vertex(new Vector4(5f,0f,5f,0f),new Vector4(.8f),new Vector4(0f,1f,0f,0f)),
-            new vertex(new Vector4(5f,0f,-5f,0f),new Vector4(.8f),new Vector4(0f,1f,0f,0f)),
-            new vertex(new Vector4(-5f,0f,-5f,0f),new Vector4(.8f),new Vector4(0f,1f,0f,0f)),
-            new vertex(new Vector4(-5f,0f,5f,0f),new Vector4(.8f),new Vector4(0f,1f,0f,0f)),
-        };
-
-        uint[] indices = {  // note that we start from 0!
-            0, 1, 3,   // first triangle
-            1, 2, 3    // second triangle
-        };
+        //Shader Noise Variables
+        FBMNoiseVariables _noiseVariables;
 
         void CreateBuffers()
         {            
-        
-            /*
-            _vbo = new VBO();
-            _vbo.BufferData(vertices, BufferUsageHint.StaticDraw);
-            */
-
-
+            //Vertex Buffer
             _ssbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer,_ssbo);
             GL.BufferData(BufferTarget.ArrayBuffer, sizeof(float) * 12 * VertexCount(), nint.Zero,BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
-            //Create all our buffers
+            //Vertex array object buffer
             _vao = new VAO();
 
+            // Tell the shader which numbers mean what in the buffer
             List<(int, int, VertexAttribPointerType, bool, int, int)> Pointers = new List<(int, int, VertexAttribPointerType, bool, int, int)>()
             {
                 (_terrainShader.GetAttribLocation("aPosition"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 0),
@@ -102,6 +74,8 @@ namespace OpenTkVoxelEngine
             _vao.Bind();
             GL.BindVertexArray(_vao._objectHandle);
 
+
+            //Create our index buffer
             _ebo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer,_ebo);
             GL.BufferData(BufferTarget.ElementArrayBuffer,IndexCount() * 6 * sizeof(uint),IntPtr.Zero, BufferUsageHint.StaticDraw);
@@ -110,23 +84,37 @@ namespace OpenTkVoxelEngine
 
         void CreateShaders()
         {
+            //Our material shader
             _terrainShader = new Shader(_vertexPath, _fragmentPath);
             _terrainShader.Use();
 
+            //Compute shader that handles the creation of verticies
             _vertexCreationShader = new ComputeShader(_createVertexComputePath);
             _vertexCreationShader.use();
             UpdateVertexCreationShader();
 
+            //Compute shader that handles the creation of indices
             _indexCreationShader = new ComputeShader(_createIndicesComputePath);
             _indexCreationShader.use();
             UpdateIndexCreationShader();
+
+            //Compute shader that handles applying a base noise map onto the mesh
+            _noiseApplicationShader = new ComputeShader(_noiseApplicationComputePath);
+            _noiseApplicationShader.use();
+            _noiseVariables = new FBMNoiseVariables();
+            UpdateNoiseVariables();
+
+
+            //Compute shader that handles recalculation normals of the mesh
+            _normalCalculationShader = new ComputeShader(_normalCalculationComputePath);
+            _normalCalculationShader.use();
+            UpdateNormalShader();
         }
 
         public HydraulicErosion(GameWindow window) : base(window)
         {            
             //Set clear color
             GL.ClearColor(Color.Black);
-
 
             //Create the camera
             camera = new Camera(_window,0.01f,500f);
@@ -145,8 +133,6 @@ namespace OpenTkVoxelEngine
         }
 
         Vector3 LightPos = Vector3.One;
-        Vector3 LightDirection = Vector3.UnitY + Vector3.UnitX;
-
         float _workGroupSize = 8.0f;
 
         float totalTime = 0;
@@ -181,12 +167,32 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
 
+            //Add Noise
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
+
+            _noiseApplicationShader.use();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            //Update Normals
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
+
+            _normalCalculationShader.use();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+
+            //Use our terrain material
             _terrainShader.Use();
             _terrainShader.SetMatrix4("model",Matrix4.Identity);
             _terrainShader.SetMatrix4("view", camera.View());
             _terrainShader.SetMatrix4("projection", camera.Projection());
- 
- 
             _terrainShader.SetVec3("viewPos",camera.Position());
 
             //Point Light Settings
@@ -198,11 +204,15 @@ namespace OpenTkVoxelEngine
             _terrainShader.SetVec3("light.diffuse", new Vector3(0.8f, 0.8f, 0.8f));
             _terrainShader.SetVec3("light.specular", new Vector3(0, 1.0f, 0));
 
-            GL.PolygonMode(MaterialFace.FrontAndBack,PolygonMode.Line);
 
+            //Change the drawmode of the mesh
+            //GL.PolygonMode(MaterialFace.FrontAndBack,PolygonMode.Line);
+
+            //Draw the mesh
             _vao.Bind();
             GL.DrawElements(PrimitiveType.Triangles,IndexCount() * 6,DrawElementsType.UnsignedInt,0);
 
+            //Swap buffers to render the mesh
             _window.SwapBuffers();
         }
 
@@ -219,6 +229,29 @@ namespace OpenTkVoxelEngine
             _indexCreationShader.SetInt("trianglesPerRow", _gridVertexCount.X - 1);
         }
 
+        public void UpdateNoiseVariables()
+        {
+            _noiseApplicationShader.use();
+            _noiseApplicationShader.SetIVec2("vertexCount", _gridVertexCount);
+            _noiseApplicationShader.SetInt("seed", _noiseVariables.seed);
+            _noiseApplicationShader.SetInt("NumLayers", _noiseVariables.NumLayers);
+            _noiseApplicationShader.SetVec3("centre", _noiseVariables.centre);
+            _noiseApplicationShader.SetFloat("baseRoughness", _noiseVariables.baseRoughness);
+            _noiseApplicationShader.SetFloat("roughness", _noiseVariables.roughness);
+            _noiseApplicationShader.SetFloat("persistence", _noiseVariables.persistence);
+            _noiseApplicationShader.SetFloat("minValue", _noiseVariables.minValue);
+            _noiseApplicationShader.SetFloat("strength", _noiseVariables.strength);
+            _noiseApplicationShader.SetFloat("scale", _noiseVariables.scale);
+            _noiseApplicationShader.SetFloat("minHeight", _noiseVariables.minHeight);
+            _noiseApplicationShader.SetFloat("maxHeight", _noiseVariables.maxHeight);
+        }
+
+        public void UpdateNormalShader()
+        {
+            _normalCalculationShader.use();
+            _normalCalculationShader.SetIVec2("vertexCount", _gridVertexCount);
+        }
+
         public override void OnMouseWheel(MouseWheelEventArgs e)
         {
         }
@@ -230,6 +263,22 @@ namespace OpenTkVoxelEngine
         public override void OnLoad()
         {
             
+        }
+
+
+        public class FBMNoiseVariables{
+
+            public int seed = 0;
+            public int NumLayers = 7;
+            public Vector3 centre = Vector3.Zero;
+            public float baseRoughness = .4f;
+            public float roughness = .8f;
+            public float persistence = 1;
+            public float minValue = 1;
+            public float strength = 1;
+            public float scale = 0.05f;
+            public float minHeight = 0;
+            public float maxHeight = 15;
         }
     }
 }
