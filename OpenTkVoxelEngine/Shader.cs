@@ -17,6 +17,8 @@ namespace OpenTkVoxelEngine
 
         public Shader(string vertexPath, string fragmentPath)
         {
+            if (vertexPath == "" || fragmentPath == "") return;
+
 
             //Read Shaders To Strings
             string vertexSource = File.ReadAllText(vertexPath);

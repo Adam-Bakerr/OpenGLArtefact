@@ -112,6 +112,12 @@ namespace OpenTkVoxelEngine
             GL.Uniform2(location, value);
         }
 
+        public void SetIVec2(string name, Vector2i value)
+        {
+            int location = GL.GetUniformLocation(_handle, name);
+            GL.Uniform2(location, value);
+        }
+
 
         public void SetMatrix4(string name, Matrix4 value)
         {

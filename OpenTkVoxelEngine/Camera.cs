@@ -32,10 +32,12 @@ namespace OpenTkVoxelEngine
 
         //Camera Variables
         float _FOV = 45.0f;
+        public float FOV() => _FOV;
+
         float _maxFOV = 45.0f;
         float _nearPlane = .1f;
         float _farPlane = 100f;
-        float _speed = 2f;
+        float _speed = 12f;
         float _sensitivity = 1.0f;
 
         Vector3 _position = Vector3.Zero;
@@ -55,9 +57,12 @@ namespace OpenTkVoxelEngine
         bool _cursorLocked = true;
         bool _firstMove = true;
 
-        public Camera(GameWindow window)
+        public Camera(GameWindow window, float nearPlane, float farPlane)
         {
             _window = window;
+            _nearPlane = nearPlane;
+            _farPlane = farPlane;
+
 
             //Create default matrix
             _model = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(-55.0f));

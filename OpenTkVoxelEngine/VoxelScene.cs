@@ -49,10 +49,12 @@ namespace OpenTkVoxelEngine
             rayShader = new Shader("raytrace.vert", "raytrace.frag");
             computeShader = new ComputeShader("CreateUSDF.compute");
             marchShader = new ComputeShader("USDFMarch.compute");
+
+            marchShader.SetFloat("aspect", (float)screenTextureWidth / (float)screenTextureHeight);
         }
 
-        int TextureWidth = 256, TextureHeight = 256, TextureDepth = 256;
-        int screenTextureWidth = 1024, screenTextureHeight = 1024;
+        int TextureWidth = 128, TextureHeight = 128, TextureDepth = 128;
+        int screenTextureWidth = 1920, screenTextureHeight = 1080;
         float Resolution = .2f;
         int MaxRayDistance = 8;
         int _texture, _screenTexture;
@@ -139,7 +141,7 @@ namespace OpenTkVoxelEngine
         }
 
         bool hasRan = false;
-        Vector3 Offset = Vector3.Zero;
+        Vector3 Offset = Vector3.UnitY * 25f;
         float layer = 0;
 
         public override void OnRenderFrame(FrameEventArgs args)
@@ -210,9 +212,8 @@ namespace OpenTkVoxelEngine
             marchShader.SetVec3("CameraRight", camera.Right());
             marchShader.SetVec3("CameraUp", camera.Up());
             marchShader.SetVec3("sdfTextureSize", new Vector3(TextureWidth,TextureHeight,TextureDepth));
-            marchShader.SetFloat("resolution", Resolution);
-
- 
+            marchShader.SetFloat("fov",camera.FOV());
+            marchShader.SetMatrix4("viewMatrix", camera.View());
 
             GL.DispatchCompute((int)Math.Ceiling(screenTextureWidth / 4.0f), (int)Math.Ceiling(screenTextureHeight / 4.0f), 1);
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
@@ -238,9 +239,9 @@ namespace OpenTkVoxelEngine
 
             vao.Bind();
 
-            //Draw the full screen triangle
+            //Draw The Buffer
             GL.DrawArrays(PrimitiveType.Triangles,0,vertices.Length);
-
+          
             _window.SwapBuffers();
 
         }
@@ -276,7 +277,7 @@ namespace OpenTkVoxelEngine
 
         public override void OnLoad()
         {
-            camera = new Camera(_window);
+            camera = new Camera(_window, 0.01f, 500f);
 
             //Disable Z Depth Testing
             GL.Disable(EnableCap.DepthTest);

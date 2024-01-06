@@ -151,7 +151,7 @@ namespace OpenTkVoxelEngine
             GL.Enable(EnableCap.DepthTest);
 
             //Create Camera
-            camera = new Camera(_window);
+            camera = new Camera(_window, 0.01f, 500f);
 
             CreateShader("shader.vert", "shader.frag");
             FindShaderLocations();

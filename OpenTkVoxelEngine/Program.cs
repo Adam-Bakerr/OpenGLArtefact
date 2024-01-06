@@ -60,9 +60,9 @@ namespace Engine
             _scenes = new List<IScene>();
             _scenes.Add(new CubeScene(this));
             _scenes.Add(new VoxelScene(this));
+            _scenes.Add(new HydraulicErosion(this));
 
-
-            ActiveScene = _scenes[1];
+            ActiveScene = _scenes[2];
             ActiveScene.SetActive(true);
         }
 
