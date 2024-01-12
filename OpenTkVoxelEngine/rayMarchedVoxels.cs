@@ -4,10 +4,13 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Dear_ImGui_Sample;
+using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace OpenTkVoxelEngine
 {
@@ -18,44 +21,105 @@ namespace OpenTkVoxelEngine
 
         //Grid Definitions
         Vector2i _gridVertexCount = new Vector2i(512, 512);
-        Vector2 _gridDimensions = new Vector2(10, 10);
+        Vector2 _gridDimensions = new Vector2(25, 25);
         Vector2 Resolution() => _gridDimensions / _gridVertexCount;
         int VertexCount() => _gridVertexCount.X * _gridVertexCount.Y;
         int IndexCount() => (_gridVertexCount.X - 1) * (_gridVertexCount.Y - 1);
 
+        bool _initialized = false;
+        bool _shouldErode = false;
+
+        int particleCount = 15000;
+        int sqrtParticle;
+        int currentParticleCount = 15000;
+
+        int particleLifetime = 30;
+        float inertia = .1f;
+        float sedimentCapacity = 10f;
+        float gravity = 4f;
+        float evaporationRate = .1f;
+        float erosionRate = .1f;
+        float depositionRate = 1f;
+        float minSlope = 0.0001f;
+
+
         //Buffers
         int _ssbo; // this acts as a vbo
+        int _rdbo; //Random Droplet Buffer Object
+        int _bibo; // Brush Indices Buffer Object
         int _ebo;
         VAO _vao;
+        int _meshInfoBuffer;
 
         //Shaders
         Shader _terrainShader;
         ComputeShader _vertexCreationShader;
         ComputeShader _indexCreationShader;
         ComputeShader _noiseApplicationShader;
+        ComputeShader _fallOffApplicationShader;
         ComputeShader _normalCalculationShader;
+        ComputeShader _biomeGenerationShader;
+        ComputeShader _biomeApplicationShader;
+        ComputeShader _erosionShader;
+        ComputeShader _particleCreationShader;
 
         //Camera
         Camera camera;
+
+        //Textures
+        int _biomeTexture;
+
+        //Imgui Controller
+        ImGuiController _controller;
 
         string _vertexPath = "erosionVert.vert";
         string _fragmentPath = "erosionFrag.frag";
         string _createVertexComputePath = "createVertcies.compute";
         string _createIndicesComputePath = "createIndices.compute";
         string _noiseApplicationComputePath = "noiseApplication.compute";
+        string _fallOffComputePath = "fallOffApplication.compute";
         string _normalCalculationComputePath = "normalCalculation.compute";
+        string _biomeGenerationComputePath = "biomeGeneration.compute";
+        string _biomeApplicationShaderPath = "applyBiomeMap.compute";
+        string _erosionComputePath = "erode.compute";
+        string _particleCreationPath = "createParticles.compute";
 
         //Shader Noise Variables
+        int _minMaxPrecisionFactor = 10000000;
         FBMNoiseVariables _noiseVariables;
+        FBMNoiseVariables _falloffNoiseVariables;
+        float _fallOffJitter = 1;
+        FBMNoiseVariables _humitidyNoiseVariables;
+
+        int[][] erosionBrushIndices;
+        float[][] erosionBrushWeights;
+
 
         void CreateBuffers()
-        {            
+        {
             //Vertex Buffer
             _ssbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer,_ssbo);
             GL.BufferData(BufferTarget.ArrayBuffer, sizeof(float) * 12 * VertexCount(), nint.Zero,BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            //Create our mesh info buffer which just holds two floats for min and max vertex height
+            _meshInfoBuffer = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _meshInfoBuffer);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(int) * 4, new int[] { Int32.MaxValue, 0 }, BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _meshInfoBuffer);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            //Create the random droplet buffer
+            _rdbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _rdbo);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(float) * 8 * particleCount, nint.Zero, BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _rdbo);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+
+
 
             //Vertex array object buffer
             _vao = new VAO();
@@ -79,7 +143,8 @@ namespace OpenTkVoxelEngine
             _ebo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer,_ebo);
             GL.BufferData(BufferTarget.ElementArrayBuffer,IndexCount() * 6 * sizeof(uint),IntPtr.Zero, BufferUsageHint.StaticDraw);
-            
+
+
         }
 
         void CreateShaders()
@@ -87,6 +152,7 @@ namespace OpenTkVoxelEngine
             //Our material shader
             _terrainShader = new Shader(_vertexPath, _fragmentPath);
             _terrainShader.Use();
+            _terrainShader.SetInt("biomeMap",0);
 
             //Compute shader that handles the creation of verticies
             _vertexCreationShader = new ComputeShader(_createVertexComputePath);
@@ -101,47 +167,46 @@ namespace OpenTkVoxelEngine
             //Compute shader that handles applying a base noise map onto the mesh
             _noiseApplicationShader = new ComputeShader(_noiseApplicationComputePath);
             _noiseApplicationShader.use();
-            _noiseVariables = new FBMNoiseVariables();
-            UpdateNoiseVariables();
+            _noiseVariables = new FBMNoiseVariables(0,4,Vector3.Zero, .6f,.8f,1,0,2,0.05f,0,150,1);
+            UpdateHeightmapNoiseVariables();
 
+            //Compute shader that handles applying a falloff noise map onto the mesh
+            _fallOffApplicationShader = new ComputeShader(_fallOffComputePath);
+            _fallOffApplicationShader.use();
+            _falloffNoiseVariables = new FBMNoiseVariables(0, 3, new Vector3(0,-0.34f,0), 1, .34f, 1, 0, 1, 0.06f, 0, 150,1.77f);
+            UpdateFallOffmapNoiseVariables();
 
             //Compute shader that handles recalculation normals of the mesh
             _normalCalculationShader = new ComputeShader(_normalCalculationComputePath);
             _normalCalculationShader.use();
             UpdateNormalShader();
+
+
+            //Compute shader that handles the creation of a biome texture for the mesh
+            _biomeGenerationShader = new ComputeShader(_biomeGenerationComputePath);
+            _biomeGenerationShader.use();
+            _humitidyNoiseVariables = new FBMNoiseVariables(0, 7, Vector3.Zero, .4f, .8f, .5f, 0, 1, 0.15f, 0, 1,1);
+            CreateBiomeTexture();
+            UpdateBiomeShader();
+            UpdateHumidityNoiseVariables();
+
+            _biomeApplicationShader = new ComputeShader(_biomeApplicationShaderPath);
+            _biomeApplicationShader.use();
+            UpdateBiomeApplcationShader();
+
+            _erosionShader = new ComputeShader(_erosionComputePath);
+            _erosionShader.use();
+            UpdateErosionShader();
+
+            _particleCreationShader = new ComputeShader(_particleCreationPath);
+            _particleCreationShader.use();
+            UpdateParticleCreationShader();
         }
 
-        public HydraulicErosion(GameWindow window) : base(window)
-        {            
-            //Set clear color
-            GL.ClearColor(Color.Black);
-
-            //Create the camera
-            camera = new Camera(_window,0.01f,500f);
-
-            //Create shader and update its uniforms
-            CreateShaders();
-
-            //create all buffers
-            CreateBuffers();
-
-        }
-
-        public override void OnUpdateFrame(FrameEventArgs args)
+        public void UpdateMesh()
         {
-            camera.OnUpdateFrame(args);
-        }
+            if (!_initialized || _shouldErode) return;
 
-        Vector3 LightPos = Vector3.One;
-        float _workGroupSize = 8.0f;
-
-        float totalTime = 0;
-        public override void OnRenderFrame(FrameEventArgs args)
-        {
-            //Tell openGL to clear the color buffer and depth buffer
-            GL.Clear(ClearBufferMask.ColorBufferBit);
-            totalTime += (float)args.Time;
-            LightPos = new Vector3(0, 5f + (float)Math.Sin(totalTime) * 5f,0f);
 
 
             //Create Vertices
@@ -149,7 +214,6 @@ namespace OpenTkVoxelEngine
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
 
             _vertexCreationShader.use();
-            _vertexCreationShader.SetFloat("time",totalTime);
 
             GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
@@ -171,7 +235,20 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
 
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _meshInfoBuffer);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _meshInfoBuffer);
+
             _noiseApplicationShader.use();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            //Add Falloff map
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
+
+            _fallOffApplicationShader.use();
 
             GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
@@ -188,12 +265,102 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
 
+            //Create Biome Map
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, _biomeTexture);
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _ssbo);
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _meshInfoBuffer);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _meshInfoBuffer);
+
+            _biomeGenerationShader.use();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            //Apply biome map to generate colors
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, _biomeTexture);
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _ssbo);
+
+            _biomeApplicationShader.use();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+
+
+        }
+
+        public HydraulicErosion(GameWindow window, ImGuiController controller) : base(window)
+        {            
+            //Set clear color
+            GL.ClearColor(Color.Black);
+
+            GL.Enable(EnableCap.DepthTest);
+
+            //Create the camera
+            camera = new Camera(_window,0.01f,500f);
+
+            //Create shader and update its uniforms
+            CreateShaders();
+
+            //create all buffers
+            CreateBuffers();
+
+            _controller = controller;
+
+            _initialized = true;
+
+            //Create inital mesh
+            UpdateMesh();
+
+        }
+
+        public override void OnUpdateFrame(FrameEventArgs args)
+        {
+            camera.OnUpdateFrame(args);
+        }
+
+        Vector3 LightPos = Vector3.One;
+        float _workGroupSize = 8.0f;
+
+        float totalTime = 0;
+        
+        float ComputeTime = 0f;
+
+        public override void OnRenderFrame(FrameEventArgs args)
+        {
+            //Time The Amount of time all computes take to run
+            float startTime = DateTime.Now.Microsecond;
+
+            //Update Imgui Controller
+            _controller.Update(_window, (float)args.Time);
+
+            //Tell openGL to clear the color buffer and depth buffer
+            GL.ClearColor(Color.Black);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            totalTime += (float)args.Time;
+            LightPos = new Vector3(0, 5f + (float)Math.Sin(totalTime) * 5f,0f);
+
+
+            //Erode
+            if (_shouldErode) Erode();
+
             //Use our terrain material
             _terrainShader.Use();
             _terrainShader.SetMatrix4("model",Matrix4.Identity);
             _terrainShader.SetMatrix4("view", camera.View());
             _terrainShader.SetMatrix4("projection", camera.Projection());
             _terrainShader.SetVec3("viewPos",camera.Position());
+            _terrainShader.SetVec2("gridDimensions",_gridDimensions);
+            _terrainShader.SetFloat("minHeight",_noiseVariables.minHeight);
 
             //Point Light Settings
             _terrainShader.SetVec3("light.position", LightPos);
@@ -202,18 +369,200 @@ namespace OpenTkVoxelEngine
             _terrainShader.SetFloat("light.quadratic", 0.032f);
             _terrainShader.SetVec3("light.ambient", Vector3.UnitZ * .05f);
             _terrainShader.SetVec3("light.diffuse", new Vector3(0.8f, 0.8f, 0.8f));
-            _terrainShader.SetVec3("light.specular", new Vector3(0, 1.0f, 0));
+            _terrainShader.SetVec3("light.specular", new Vector3(.10f, .10f, .10f));
 
 
-            //Change the drawmode of the mesh
-            //GL.PolygonMode(MaterialFace.FrontAndBack,PolygonMode.Line);
+
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D,_biomeTexture);
+            
+            //GL.PolygonMode(MaterialFace.FrontAndBack,PolygonMode.Point);
 
             //Draw the mesh
             _vao.Bind();
             GL.DrawElements(PrimitiveType.Triangles,IndexCount() * 6,DrawElementsType.UnsignedInt,0);
 
-            //Swap buffers to render the mesh
+            DrawImgui();
+
             _window.SwapBuffers();
+
+            ComputeTime = DateTime.Now.Microsecond - startTime;
+
+        }
+
+        public void Erode()
+        {
+            //Run 1 Tick Of The Erosion
+
+            CreateParticles();
+    
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _rdbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _rdbo);
+
+            UpdateErosionShader();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+        }
+
+        public void CreateParticles()
+        {
+            if (currentParticleCount != particleCount)
+            {
+                currentParticleCount = particleCount;
+                GL.DeleteBuffer(_rdbo);
+
+                //Create the random droplet buffer
+                _rdbo = GL.GenBuffer();
+                GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _rdbo);
+                GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(float) * 8 * particleCount, nint.Zero, BufferUsageHint.StaticDraw);
+                GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _rdbo);
+                GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+            }
+
+            sqrtParticle = (int)MathF.Ceiling(MathF.Sqrt(particleCount));
+
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _rdbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _rdbo);
+
+            _particleCreationShader.use();
+            _particleCreationShader.SetFloat("totalTime", totalTime);
+            _particleCreationShader.SetIVec2("vertexCount",_gridVertexCount);
+            _particleCreationShader.SetInt("sqrtParticleCount", sqrtParticle);
+
+
+            
+            GL.DispatchCompute((int)MathF.Ceiling(sqrtParticle / _workGroupSize), (int)MathF.Ceiling(sqrtParticle / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+        }
+
+        public void UpdateErosionShader()
+        {
+            _erosionShader.use();
+            _erosionShader.SetIVec2("vertexCount",_gridVertexCount);
+            _erosionShader.SetInt("sqrtParticleCount", sqrtParticle);
+            _erosionShader.SetInt("particleLifetime", particleLifetime);
+            _erosionShader.SetFloat("inertia",inertia);
+            _erosionShader.SetFloat("minSlope", minSlope);
+            _erosionShader.SetFloat("capacity", sedimentCapacity);
+            _erosionShader.SetFloat("depoRate", depositionRate);
+            _erosionShader.SetFloat("erosionRate", erosionRate);
+            _erosionShader.SetFloat("gravity", gravity);
+            _erosionShader.SetFloat("evaporationRate", evaporationRate);
+     
+        }
+
+
+
+
+
+        public void DrawImgui()
+        {
+            if (!_window.IsKeyDown(Keys.LeftAlt)) return;
+            
+            //Show Heightmap Noise Window
+            ImGui.Begin("Debug Menu");
+            ImGui.Text("Vertex Count: "+VertexCount().ToString());
+            ImGui.Text("GPU Frame Time In Micro-Seconds:" + ComputeTime);
+            ImGui.End();
+
+
+            ImGui.Begin("Terrain Simulation Settings",ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize);
+            ImGui.Checkbox("Toggle Erosion Simulation", ref _shouldErode);
+
+            ImGui.Text("Height Map Settings");
+            if(ImGui.DragInt("HeightMap seed", ref _noiseVariables.seed,1))UpdateHeightmapNoiseVariables();
+            if (ImGui.DragInt("HeightMap numLayers", ref _noiseVariables.NumLayers,1 , 0 , 8)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap baseRoughness", ref _noiseVariables.baseRoughness,.005f,0)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap Roughness", ref _noiseVariables.roughness,.005f,0)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap persistence", ref _noiseVariables.persistence,.01f,0)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap minValue", ref _noiseVariables.minValue)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap strength", ref _noiseVariables.strength,0.005f,0.0001f)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap scale", ref _noiseVariables.scale,.005f,0.0001f)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap minHeight", ref _noiseVariables.minHeight)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap maxHeight", ref _noiseVariables.maxHeight)) UpdateHeightmapNoiseVariables();
+            ImGui.Spacing();
+            ImGui.Text("Falloff Map Settings");
+            if (ImGui.DragInt("FallOff seed", ref _falloffNoiseVariables.seed, 1)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragInt("FallOff numLayers", ref _falloffNoiseVariables.NumLayers, 1, 0, 8)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff baseRoughness", ref _falloffNoiseVariables.baseRoughness, .005f, 0)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff Roughness", ref _falloffNoiseVariables.roughness, .005f, 0)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff persistence", ref _falloffNoiseVariables.persistence, .01f, 0)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff minValue", ref _falloffNoiseVariables.minValue)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff strength", ref _falloffNoiseVariables.strength, 0.005f, 0.0001f)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff scale", ref _falloffNoiseVariables.scale, .005f, 0.0001f)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff minHeight", ref _falloffNoiseVariables.minHeight)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff maxHeight", ref _falloffNoiseVariables.maxHeight)) UpdateFallOffmapNoiseVariables();
+
+            
+
+            ImGui.Text("Humitidy Map Configuration");
+            if (ImGui.DragInt("seed", ref _humitidyNoiseVariables.seed, 1)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragInt("numLayers", ref _humitidyNoiseVariables.NumLayers, 1, 0, 8)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("baseRoughness", ref _humitidyNoiseVariables.baseRoughness, .005f, 0)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("Roughness", ref _humitidyNoiseVariables.roughness, .005f, 0)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("persistence", ref _humitidyNoiseVariables.persistence, .01f, 0)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("minValue", ref _humitidyNoiseVariables.minValue)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("strength", ref _humitidyNoiseVariables.strength, 0.005f, 0.0001f)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("scale", ref _humitidyNoiseVariables.scale, .005f, 0.0001f)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("minHeight", ref _humitidyNoiseVariables.minHeight)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("maxHeight", ref _humitidyNoiseVariables.maxHeight)) UpdateHumidityNoiseVariables();
+            ImGui.End();
+
+            _controller.Render();
+
+        }
+
+        public void CreateBiomeTexture()
+        {
+            _biomeTexture = GL.GenTexture();
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D,_biomeTexture);
+
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, _gridVertexCount.X, _gridVertexCount.Y, 0, PixelFormat.Rgba, PixelType.UnsignedByte, 0);
+
+            GL.BindImageTexture(0, _biomeTexture, 0, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+        }
+
+
+        public void UpdateParticleCreationShader()
+        {
+            _particleCreationShader.use();
+            _biomeApplicationShader.SetIVec2("vertexCount", _gridVertexCount);
+
+            //create a random hash for random noise
+            _biomeApplicationShader.SetFloat("totalTime",totalTime);
+        }
+
+
+        public void UpdateBiomeShader()
+        {
+            _biomeGenerationShader.use();
+            _biomeGenerationShader.SetIVec2("gridDimensions",_gridVertexCount);
+            _biomeGenerationShader.SetInt("biomeTexture",0);
+            _biomeGenerationShader.SetInt("minMaxPrecisionFactor", _minMaxPrecisionFactor);
+
+        }
+
+        public void UpdateBiomeApplcationShader()
+        {
+            _biomeApplicationShader.use();
+            _biomeApplicationShader.SetIVec2("vertexCount", _gridVertexCount);
+            _biomeApplicationShader.SetInt("biomeTexture", 0);
         }
 
         public void UpdateVertexCreationShader()
@@ -229,7 +578,7 @@ namespace OpenTkVoxelEngine
             _indexCreationShader.SetInt("trianglesPerRow", _gridVertexCount.X - 1);
         }
 
-        public void UpdateNoiseVariables()
+        public void UpdateHeightmapNoiseVariables()
         {
             _noiseApplicationShader.use();
             _noiseApplicationShader.SetIVec2("vertexCount", _gridVertexCount);
@@ -244,6 +593,51 @@ namespace OpenTkVoxelEngine
             _noiseApplicationShader.SetFloat("scale", _noiseVariables.scale);
             _noiseApplicationShader.SetFloat("minHeight", _noiseVariables.minHeight);
             _noiseApplicationShader.SetFloat("maxHeight", _noiseVariables.maxHeight);
+            _noiseApplicationShader.SetInt("minMaxPrecisionFactor", _minMaxPrecisionFactor);
+
+            //Update the mesh when a noise variable is changed
+            UpdateMesh();
+        }
+
+        public void UpdateFallOffmapNoiseVariables()
+        {
+            _fallOffApplicationShader.use();
+            _fallOffApplicationShader.SetIVec2("vertexCount", _gridVertexCount);
+            _fallOffApplicationShader.SetInt("seed", _falloffNoiseVariables.seed);
+            _fallOffApplicationShader.SetInt("NumLayers", _falloffNoiseVariables.NumLayers);
+            _fallOffApplicationShader.SetVec3("centre", _falloffNoiseVariables.centre);
+            _fallOffApplicationShader.SetFloat("baseRoughness", _falloffNoiseVariables.baseRoughness);
+            _fallOffApplicationShader.SetFloat("roughness", _falloffNoiseVariables.roughness);
+            _fallOffApplicationShader.SetFloat("persistence", _falloffNoiseVariables.persistence);
+            _fallOffApplicationShader.SetFloat("minValue", _falloffNoiseVariables.minValue);
+            _fallOffApplicationShader.SetFloat("strength", _falloffNoiseVariables.strength);
+            _fallOffApplicationShader.SetFloat("scale", _falloffNoiseVariables.scale);
+            _fallOffApplicationShader.SetFloat("minHeight", _falloffNoiseVariables.minHeight);
+            _fallOffApplicationShader.SetFloat("maxHeight", _falloffNoiseVariables.maxHeight);
+            _fallOffApplicationShader.SetFloat("lacunicity", _falloffNoiseVariables.lacunicity);
+            _fallOffApplicationShader.SetFloat("jitter", _fallOffJitter);
+
+            //Update the mesh when a noise variable is changed
+            UpdateMesh();
+        }
+
+        public void UpdateHumidityNoiseVariables()
+        {
+            _biomeGenerationShader.use();
+            _biomeGenerationShader.SetInt("seed", _humitidyNoiseVariables.seed);
+            _biomeGenerationShader.SetInt("NumLayers", _humitidyNoiseVariables.NumLayers);
+            _biomeGenerationShader.SetVec3("centre", _humitidyNoiseVariables.centre);
+            _biomeGenerationShader.SetFloat("baseRoughness", _humitidyNoiseVariables.baseRoughness);
+            _biomeGenerationShader.SetFloat("roughness", _humitidyNoiseVariables.roughness);
+            _biomeGenerationShader.SetFloat("persistence", _humitidyNoiseVariables.persistence);
+            _biomeGenerationShader.SetFloat("minValue", _humitidyNoiseVariables.minValue);
+            _biomeGenerationShader.SetFloat("strength", _humitidyNoiseVariables.strength);
+            _biomeGenerationShader.SetFloat("scale", _humitidyNoiseVariables.scale);
+            _biomeGenerationShader.SetFloat("minHeight", _humitidyNoiseVariables.minHeight);
+            _biomeGenerationShader.SetFloat("maxHeight", _humitidyNoiseVariables.maxHeight);
+
+            //Update the mesh when a noise variable is changed
+            UpdateMesh();
         }
 
         public void UpdateNormalShader()
@@ -278,7 +672,49 @@ namespace OpenTkVoxelEngine
             public float strength = 1;
             public float scale = 0.05f;
             public float minHeight = 0;
-            public float maxHeight = 15;
+            public float maxHeight = 5;
+            public float lacunicity = 1;
+
+            public FBMNoiseVariables(int seed, int numLayers,Vector3 center, float baseRoughness,float roughness, float persistence, float minValue, float strength, float scale, float minHeight, float maxHeight, float lacunicity)
+            {
+                this.seed = seed;
+                this.NumLayers = numLayers;
+                this.centre = center;
+                this.baseRoughness = baseRoughness;
+                this.roughness = roughness;
+                this.persistence = persistence;
+                this.minValue = minValue;
+                this.strength = strength;
+                this.scale = scale;
+                this.minHeight = minHeight;
+                this.maxHeight = maxHeight;
+                this.lacunicity = lacunicity;
+            }
         }
+
+        //https://slideplayer.com/slide/3447433/12/images/14/Robert+Whittaker,+Cornell+Uni..jpg
+        enum BiomeType
+        {
+            Desert,
+            Savanna,
+            TropicalRainforest,
+            Grassland,
+            Woodland,
+            SeasonalForest,
+            TemperateRainforest,
+            BorealForest,
+            Tundra,
+            Ice
+        }
+
+        BiomeType[,] Biometable = new BiomeType[,]{   
+            //COLDEST        //COLDER          //COLD                  //HOT                          //HOTTER                       //HOTTEST
+            { BiomeType.Ice, BiomeType.Tundra, BiomeType.Grassland,    BiomeType.Desert,              BiomeType.Desert,              BiomeType.Desert },              //DRYEST
+            { BiomeType.Ice, BiomeType.Tundra, BiomeType.Grassland,    BiomeType.Desert,              BiomeType.Desert,              BiomeType.Desert },              //DRYER
+            { BiomeType.Ice, BiomeType.Tundra, BiomeType.Woodland,     BiomeType.Woodland,            BiomeType.Savanna,             BiomeType.Savanna },             //DRY
+            { BiomeType.Ice, BiomeType.Tundra, BiomeType.BorealForest, BiomeType.Woodland,            BiomeType.Savanna,             BiomeType.Savanna },             //WET
+            { BiomeType.Ice, BiomeType.Tundra, BiomeType.BorealForest, BiomeType.SeasonalForest,      BiomeType.TropicalRainforest,  BiomeType.TropicalRainforest },  //WETTER
+            { BiomeType.Ice, BiomeType.Tundra, BiomeType.BorealForest, BiomeType.TemperateRainforest, BiomeType.TropicalRainforest,  BiomeType.TropicalRainforest }   //WETTEST
+        };
     }
 }

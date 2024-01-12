@@ -1,4 +1,5 @@
-﻿using Engine;
+﻿using Dear_ImGui_Sample;
+using Engine;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -96,7 +97,6 @@ namespace OpenTkVoxelEngine
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
-
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             

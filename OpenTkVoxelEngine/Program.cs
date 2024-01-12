@@ -1,4 +1,5 @@
 ﻿
+using Dear_ImGui_Sample;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -17,10 +18,11 @@ namespace Engine
         static void Main()
         {
 
+
             //Create Window Settings
             var nativeWindowSettings = new NativeWindowSettings()
             {
-                ClientSize = new Vector2i(800,600),
+                ClientSize = new Vector2i(1920,1080),
                 Title = "StoxelEngine",
                 Flags = ContextFlags.ForwardCompatible
             };
@@ -31,6 +33,7 @@ namespace Engine
             {
                 window.Run();
             }
+
         }
 
 
@@ -44,7 +47,9 @@ namespace Engine
 
         }
 
-        
+        //Imgui Controller
+        ImGuiController _controller;
+
         //Scenes
         static List<IScene> _scenes;
         static IScene ActiveScene;
@@ -54,24 +59,39 @@ namespace Engine
         {
             base.OnLoad();
 
+
+            //Setup imgui controller
+            _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
+
             UpdateFrequency = 0;
             //VSync = VSyncMode.On;
 
             _scenes = new List<IScene>();
             _scenes.Add(new CubeScene(this));
             _scenes.Add(new VoxelScene(this));
-            _scenes.Add(new HydraulicErosion(this));
+            _scenes.Add(new HydraulicErosion(this, _controller));
 
             ActiveScene = _scenes[2];
             ActiveScene.SetActive(true);
         }
 
 
+        protected override void OnResize(ResizeEventArgs e)
+        {
+            base.OnResize(e);
+
+            // Update the opengl viewport
+            GL.Viewport(0, 0, ClientSize.X, ClientSize.Y);
+
+            _controller.WindowResized(ClientSize.X,ClientSize.Y);
+        }
+
         bool _cursorLocked = true;
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             base.OnUpdateFrame(args);
+
 
             //Listen For Window Closing
             if (IsKeyPressed(Keys.Escape))
