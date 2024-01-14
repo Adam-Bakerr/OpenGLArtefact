@@ -70,6 +70,7 @@ namespace Engine
             _scenes.Add(new CubeScene(this));
             _scenes.Add(new VoxelScene(this));
             _scenes.Add(new HydraulicErosion(this, _controller));
+            _scenes.Add(new ParralaxRaymarcher(this));
 
             ActiveScene = _scenes[2];
             ActiveScene.SetActive(true);

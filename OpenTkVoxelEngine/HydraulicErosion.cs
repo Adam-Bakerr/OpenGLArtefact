@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -17,8 +18,6 @@ namespace OpenTkVoxelEngine
     internal class HydraulicErosion : IScene
     {
 
-        Timer _timer;
-
         //Grid Definitions
         Vector2i _gridVertexCount = new Vector2i(512, 512);
         Vector2 _gridDimensions = new Vector2(25, 25);
@@ -29,24 +28,30 @@ namespace OpenTkVoxelEngine
         bool _initialized = false;
         bool _shouldErode = false;
 
-        int particleCount = 15000;
+        int particleCount = 500000;
         int sqrtParticle;
-        int currentParticleCount = 15000;
+        int currentParticleCount = 1;
 
-        int particleLifetime = 30;
-        float inertia = .1f;
-        float sedimentCapacity = 10f;
-        float gravity = 4f;
-        float evaporationRate = .1f;
-        float erosionRate = .1f;
-        float depositionRate = 1f;
-        float minSlope = 0.0001f;
+        public int erosionBrushRadius = 3;
 
+        public int maxLifetime = 130;
+        public float sedimentCapacityFactor = 3;
+        public float minSedimentCapacity = .01f;
+        public float depositSpeed = 0.3f;
+        public float erodeSpeed = 0.3f;
+
+        public float evaporateSpeed = .01f;
+        public float gravity = 4;
+        public float startSpeed = 1;
+        public float startWater = 1;
+
+        public float inertia = 0.3f;
 
         //Buffers
         int _ssbo; // this acts as a vbo
         int _rdbo; //Random Droplet Buffer Object
         int _bibo; // Brush Indices Buffer Object
+        int _bwbo; // Brush Weight Buffer Object
         int _ebo;
         VAO _vao;
         int _meshInfoBuffer;
@@ -91,9 +96,57 @@ namespace OpenTkVoxelEngine
         float _fallOffJitter = 1;
         FBMNoiseVariables _humitidyNoiseVariables;
 
-        int[][] erosionBrushIndices;
-        float[][] erosionBrushWeights;
+        //Erosion Brush
+        List<int> brushIndexOffsets;
+        List<float> brushWeights;
 
+        void CreateErosionBrushes()
+        {
+            // Create brush
+            brushIndexOffsets = new List<int>();
+            brushWeights = new List<float>();
+
+            float weightSum = 0;
+            for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++)
+            {
+                for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++)
+                {
+                    float sqrDst = brushX * brushX + brushY * brushY;
+                    if (sqrDst < erosionBrushRadius * erosionBrushRadius)
+                    {
+                        brushIndexOffsets.Add(brushY * _gridVertexCount.X + brushX);
+                        float brushWeight = 1 - MathF.Sqrt(sqrDst) / erosionBrushRadius;
+                        weightSum += brushWeight;
+                        brushWeights.Add(brushWeight);
+                    }
+                }
+            }
+            for (int i = 0; i < brushWeights.Count; i++)
+            {
+                brushWeights[i] /= weightSum;
+            }
+
+            if (_bibo != 0)
+            {
+                GL.DeleteBuffer(_bibo);
+                _bibo = 0;
+            }
+
+
+            //Create the brush index buffer
+            _bibo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _bibo);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(int) * brushIndexOffsets.Count, brushIndexOffsets.ToArray(), BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 3, _bibo);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            //Create the brush index buffer
+            _bwbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _bwbo);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(float) * brushWeights.Count, brushWeights.ToArray(), BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 4, _bwbo);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+        }
 
         void CreateBuffers()
         {
@@ -196,6 +249,7 @@ namespace OpenTkVoxelEngine
 
             _erosionShader = new ComputeShader(_erosionComputePath);
             _erosionShader.use();
+            CreateErosionBrushes();
             UpdateErosionShader();
 
             _particleCreationShader = new ComputeShader(_particleCreationPath);
@@ -321,6 +375,8 @@ namespace OpenTkVoxelEngine
             //Create inital mesh
             UpdateMesh();
 
+            counter = particleCount + 1;
+
         }
 
         public override void OnUpdateFrame(FrameEventArgs args)
@@ -390,11 +446,14 @@ namespace OpenTkVoxelEngine
 
         }
 
+        int counter = 0;
+
         public void Erode()
         {
             //Run 1 Tick Of The Erosion
 
-            CreateParticles();
+                CreateParticles();
+            
     
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
@@ -402,11 +461,19 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _rdbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _rdbo);
 
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _bibo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _bibo);
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _bwbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 3, _bwbo);
+
             UpdateErosionShader();
 
-            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.DispatchCompute((int)MathF.Ceiling(particleCount / 128f), 1, 1);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            counter--;
 
         }
 
@@ -432,6 +499,7 @@ namespace OpenTkVoxelEngine
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _rdbo);
 
             _particleCreationShader.use();
+            _particleCreationShader.SetInt("borderSize", erosionBrushRadius);
             _particleCreationShader.SetFloat("totalTime", totalTime);
             _particleCreationShader.SetIVec2("vertexCount",_gridVertexCount);
             _particleCreationShader.SetInt("sqrtParticleCount", sqrtParticle);
@@ -447,16 +515,20 @@ namespace OpenTkVoxelEngine
         {
             _erosionShader.use();
             _erosionShader.SetIVec2("vertexCount",_gridVertexCount);
-            _erosionShader.SetInt("sqrtParticleCount", sqrtParticle);
-            _erosionShader.SetInt("particleLifetime", particleLifetime);
-            _erosionShader.SetFloat("inertia",inertia);
-            _erosionShader.SetFloat("minSlope", minSlope);
-            _erosionShader.SetFloat("capacity", sedimentCapacity);
-            _erosionShader.SetFloat("depoRate", depositionRate);
-            _erosionShader.SetFloat("erosionRate", erosionRate);
+            _erosionShader.SetInt("borderSize",erosionBrushRadius );
+            _erosionShader.SetInt("sqrtParticle",sqrtParticle);
+            _erosionShader.SetInt("brushLength", brushIndexOffsets.Count);
+            _erosionShader.SetInt("brushLength", brushIndexOffsets.Count);
+            _erosionShader.SetInt("maxLifetime", maxLifetime);
+            _erosionShader.SetFloat("inertia", inertia);
+            _erosionShader.SetFloat("sedimentCapacityFactor", sedimentCapacityFactor);
+            _erosionShader.SetFloat("minSedimentCapacity", minSedimentCapacity);
+            _erosionShader.SetFloat("depositSpeed", depositSpeed);
+            _erosionShader.SetFloat("erodeSpeed", erodeSpeed);
+            _erosionShader.SetFloat("evaporateSpeed", evaporateSpeed);
             _erosionShader.SetFloat("gravity", gravity);
-            _erosionShader.SetFloat("evaporationRate", evaporationRate);
-     
+            _erosionShader.SetFloat("startSpeed", startSpeed);
+            _erosionShader.SetFloat("startWater", startWater);
         }
 
 
@@ -542,10 +614,10 @@ namespace OpenTkVoxelEngine
         public void UpdateParticleCreationShader()
         {
             _particleCreationShader.use();
-            _biomeApplicationShader.SetIVec2("vertexCount", _gridVertexCount);
-
+            _particleCreationShader.SetIVec2("vertexCount", _gridVertexCount);
+            _particleCreationShader.SetInt("borderSize", erosionBrushRadius);
             //create a random hash for random noise
-            _biomeApplicationShader.SetFloat("totalTime",totalTime);
+            _particleCreationShader.SetFloat("totalTime",totalTime);
         }
 
 
