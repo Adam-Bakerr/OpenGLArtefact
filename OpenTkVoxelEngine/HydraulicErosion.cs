@@ -28,7 +28,8 @@ namespace OpenTkVoxelEngine
         bool _initialized = false;
         bool _shouldErode = false;
 
-        int particleCount = 500000;
+
+        int particleCount = 50000;
         int sqrtParticle;
         int currentParticleCount = 1;
 
@@ -47,11 +48,13 @@ namespace OpenTkVoxelEngine
 
         public float inertia = 0.3f;
 
+
         //Buffers
         int _ssbo; // this acts as a vbo
         int _rdbo; //Random Droplet Buffer Object
         int _bibo; // Brush Indices Buffer Object
         int _bwbo; // Brush Weight Buffer Object
+        int _pesb; // Post Erosion Smoothing Buffer
         int _ebo;
         VAO _vao;
         int _meshInfoBuffer;
@@ -67,6 +70,8 @@ namespace OpenTkVoxelEngine
         ComputeShader _biomeApplicationShader;
         ComputeShader _erosionShader;
         ComputeShader _particleCreationShader;
+        ComputeShader _postErosionPassOne;
+        ComputeShader _postErosionPassTwo;
 
         //Camera
         Camera camera;
@@ -88,6 +93,8 @@ namespace OpenTkVoxelEngine
         string _biomeApplicationShaderPath = "applyBiomeMap.compute";
         string _erosionComputePath = "erode.compute";
         string _particleCreationPath = "createParticles.compute";
+        string _postErosionPassOnePath = "postErosionSmoothingPassOne.compute";
+        string _postErosionPassTwoPath = "postErosionSmoothingPassTwo.compute";
 
         //Shader Noise Variables
         int _minMaxPrecisionFactor = 10000000;
@@ -170,6 +177,8 @@ namespace OpenTkVoxelEngine
             GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(float) * 8 * particleCount, nint.Zero, BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _rdbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            currentParticleCount = particleCount;
 
 
 
@@ -255,6 +264,16 @@ namespace OpenTkVoxelEngine
             _particleCreationShader = new ComputeShader(_particleCreationPath);
             _particleCreationShader.use();
             UpdateParticleCreationShader();
+
+
+            _postErosionPassOne = new ComputeShader(_postErosionPassOnePath);
+            _postErosionPassOne.use();
+
+            _postErosionPassTwo = new ComputeShader(_postErosionPassTwoPath);
+            _postErosionPassTwo.use();
+
+            UpdatePostErosionPasses();
+
         }
 
         public void UpdateMesh()
@@ -375,13 +394,15 @@ namespace OpenTkVoxelEngine
             //Create inital mesh
             UpdateMesh();
 
-            counter = particleCount + 1;
-
         }
 
         public override void OnUpdateFrame(FrameEventArgs args)
         {
             camera.OnUpdateFrame(args);
+
+            //Erode
+            if (_shouldErode) Erode();
+
         }
 
         Vector3 LightPos = Vector3.One;
@@ -390,6 +411,8 @@ namespace OpenTkVoxelEngine
         float totalTime = 0;
         
         float ComputeTime = 0f;
+
+
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
@@ -405,9 +428,6 @@ namespace OpenTkVoxelEngine
             totalTime += (float)args.Time;
             LightPos = new Vector3(0, 5f + (float)Math.Sin(totalTime) * 5f,0f);
 
-
-            //Erode
-            if (_shouldErode) Erode();
 
             //Use our terrain material
             _terrainShader.Use();
@@ -446,15 +466,15 @@ namespace OpenTkVoxelEngine
 
         }
 
-        int counter = 0;
+
 
         public void Erode()
         {
             //Run 1 Tick Of The Erosion
 
-                CreateParticles();
-            
-    
+            CreateParticles();
+
+
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
 
@@ -469,12 +489,43 @@ namespace OpenTkVoxelEngine
 
             UpdateErosionShader();
 
-            GL.DispatchCompute((int)MathF.Ceiling(particleCount / 128f), 1, 1);
+            GL.DispatchCompute((int)MathF.Ceiling(sqrtParticle / 256f), 1, 1);
+            //GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+        }
+
+        public void PostErosionPass()
+        {
+            UpdatePostErosionPasses();
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _ssbo);
+
+            //Create the smoothing buffer then delete after use
+            _pesb = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _pesb);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(float) * 12 * VertexCount(), nint.Zero, BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _pesb);
+            
+            _postErosionPassOne.use();
+
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
-            counter--;
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _pesb);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _pesb);
 
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _ssbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _ssbo);
+
+            _postErosionPassTwo.use();
+            GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+
+            GL.DeleteBuffer(_pesb);
         }
 
         public void CreateParticles()
@@ -518,7 +569,6 @@ namespace OpenTkVoxelEngine
             _erosionShader.SetInt("borderSize",erosionBrushRadius );
             _erosionShader.SetInt("sqrtParticle",sqrtParticle);
             _erosionShader.SetInt("brushLength", brushIndexOffsets.Count);
-            _erosionShader.SetInt("brushLength", brushIndexOffsets.Count);
             _erosionShader.SetInt("maxLifetime", maxLifetime);
             _erosionShader.SetFloat("inertia", inertia);
             _erosionShader.SetFloat("sedimentCapacityFactor", sedimentCapacityFactor);
@@ -531,6 +581,14 @@ namespace OpenTkVoxelEngine
             _erosionShader.SetFloat("startWater", startWater);
         }
 
+        public void UpdatePostErosionPasses()
+        {
+            _postErosionPassOne.use();
+            _postErosionPassOne.SetIVec2("vertexCount",_gridVertexCount);
+
+            _postErosionPassTwo.use();
+            _postErosionPassTwo.SetIVec2("vertexCount", _gridVertexCount);
+        }
 
 
 
@@ -586,6 +644,25 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("scale", ref _humitidyNoiseVariables.scale, .005f, 0.0001f)) UpdateHumidityNoiseVariables();
             if (ImGui.DragFloat("minHeight", ref _humitidyNoiseVariables.minHeight)) UpdateHumidityNoiseVariables();
             if (ImGui.DragFloat("maxHeight", ref _humitidyNoiseVariables.maxHeight)) UpdateHumidityNoiseVariables();
+            ImGui.End();
+
+
+            ImGui.Begin("Erosion Settings");
+
+            if (ImGui.DragInt("particle count", ref particleCount, 1000)) UpdateErosionShader();
+            if (ImGui.DragInt("Max Lifetime", ref maxLifetime, 10)) UpdateErosionShader();
+            if (ImGui.DragFloat("inertia", ref inertia, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("sedimentCapacityFactor", ref sedimentCapacityFactor, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("minSedimentCapacity", ref minSedimentCapacity, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("depositSpeed", ref depositSpeed, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("erodeSpeed", ref erodeSpeed, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("evaporateSpeed", ref evaporateSpeed, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("gravity", ref gravity, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("startSpeed", ref startSpeed, 0.01f)) UpdateErosionShader();
+            if (ImGui.DragFloat("startWater", ref startWater, 0.01f)) UpdateErosionShader();
+
+            if(ImGui.Button("Post Erosion Pass")) PostErosionPass();
+
             ImGui.End();
 
             _controller.Render();
