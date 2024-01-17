@@ -71,10 +71,7 @@ namespace OpenTkVoxelEngine
 
         public ParralaxRaymarcher(GameWindow window) : base(window)
         {
-            _camera = new Camera(_window, 0.01f, 100f);
-            vertFragShader = new Shader("rayMarcher.vert", "rayMarcher.frag");
 
-            CreateBuffers();
         }
 
         void CreateBuffers()
@@ -138,6 +135,10 @@ namespace OpenTkVoxelEngine
 
         public override void OnLoad()
         {
+            _camera = new Camera(_window, 0.01f, 100f);
+            vertFragShader = new Shader("rayMarcher.vert", "rayMarcher.frag");
+
+            CreateBuffers();
         }
     }
 }

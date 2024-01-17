@@ -151,6 +151,12 @@ namespace OpenTkVoxelEngine
             GL.Uniform3(location, value);
         }
 
+        public void SetIVec3(string name, Vector3i value)
+        {
+            int location = GL.GetUniformLocation(_handle, name);
+            GL.Uniform3(location, value);
+        }
+
         public void SetDouble(string name, double value)
         {
             int location = GL.GetUniformLocation(_handle, name);

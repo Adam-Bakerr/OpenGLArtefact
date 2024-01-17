@@ -33,7 +33,7 @@ namespace OpenTkVoxelEngine
         int sqrtParticle;
         int currentParticleCount = 1;
 
-        public int erosionBrushRadius = 3;
+        public int erosionBrushRadius = 2;
 
         public int maxLifetime = 130;
         public float sedimentCapacityFactor = 3;
@@ -372,27 +372,8 @@ namespace OpenTkVoxelEngine
         }
 
         public HydraulicErosion(GameWindow window, ImGuiController controller) : base(window)
-        {            
-            //Set clear color
-            GL.ClearColor(Color.Black);
-
-            GL.Enable(EnableCap.DepthTest);
-
-            //Create the camera
-            camera = new Camera(_window,0.01f,500f);
-
-            //Create shader and update its uniforms
-            CreateShaders();
-
-            //create all buffers
-            CreateBuffers();
-
+        {
             _controller = controller;
-
-            _initialized = true;
-
-            //Create inital mesh
-            UpdateMesh();
 
         }
 
@@ -805,7 +786,25 @@ namespace OpenTkVoxelEngine
 
         public override void OnLoad()
         {
-            
+            //Set clear color
+            GL.ClearColor(Color.Black);
+
+            GL.Enable(EnableCap.DepthTest);
+
+            //Create the camera
+            camera = new Camera(_window, 0.01f, 500f);
+
+            //Create shader and update its uniforms
+            CreateShaders();
+
+            //create all buffers
+            CreateBuffers();
+
+
+            _initialized = true;
+
+            //Create inital mesh
+            UpdateMesh();
         }
 
 

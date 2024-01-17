@@ -71,8 +71,9 @@ namespace Engine
             _scenes.Add(new VoxelScene(this));
             _scenes.Add(new HydraulicErosion(this, _controller));
             _scenes.Add(new ParralaxRaymarcher(this));
+            _scenes.Add(new SurfaceNets(this));
 
-            ActiveScene = _scenes[2];
+            ActiveScene = _scenes[4];
             ActiveScene.SetActive(true);
         }
 
@@ -103,19 +104,6 @@ namespace Engine
 
             Title = (1 / args.Time).ToString();
 
-            //Allow for scene switching
-            if (IsKeyPressed(Keys.Right) && IsKeyDown(Keys.LeftAlt))
-            {
-                ActiveScene.SetActive(false);
-                ActiveScene = _scenes[1];
-                ActiveScene.SetActive(true);
-            }
-            if (IsKeyPressed(Keys.Left) && IsKeyDown(Keys.LeftAlt))
-            {
-                ActiveScene.SetActive(false);
-                ActiveScene = _scenes[0];
-                ActiveScene.SetActive(true);
-            }
 
 
             //Handle closing the window

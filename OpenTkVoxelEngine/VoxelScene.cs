@@ -54,7 +54,7 @@ namespace OpenTkVoxelEngine
             marchShader.SetFloat("aspect", (float)screenTextureWidth / (float)screenTextureHeight);
         }
 
-        int TextureWidth = 128, TextureHeight = 128, TextureDepth = 128;
+        int TextureWidth = 512, TextureHeight = 512, TextureDepth = 512;
         int screenTextureWidth = 1920, screenTextureHeight = 1080;
         float Resolution = .2f;
         int MaxRayDistance = 8;
