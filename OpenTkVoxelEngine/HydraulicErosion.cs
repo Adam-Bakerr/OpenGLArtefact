@@ -79,9 +79,6 @@ namespace OpenTkVoxelEngine
         //Textures
         int _biomeTexture;
 
-        //Imgui Controller
-        ImGuiController _controller;
-
         string _vertexPath = "erosionVert.vert";
         string _fragmentPath = "erosionFrag.frag";
         string _createVertexComputePath = "createVertcies.compute";
@@ -371,9 +368,8 @@ namespace OpenTkVoxelEngine
 
         }
 
-        public HydraulicErosion(GameWindow window, ImGuiController controller) : base(window)
+        public HydraulicErosion(GameWindow window, ImGuiController controller) : base(window, controller)
         {
-            _controller = controller;
 
         }
 

@@ -83,7 +83,7 @@ namespace OpenTkVoxelEngine
         };
 
 
-        public CubeScene(GameWindow window) : base(window)
+        public CubeScene(GameWindow window, ImGuiController controller) : base(window, controller)
         {
 
         }

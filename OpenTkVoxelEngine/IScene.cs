@@ -16,9 +16,10 @@ namespace OpenTkVoxelEngine
 {
     abstract class IScene
     {
-        public IScene(GameWindow window)
+        public IScene(GameWindow window, ImGuiController controller)
         {
             _window = window;
+            _controller = controller;
         }
 
         void AddListeners()
@@ -52,6 +53,7 @@ namespace OpenTkVoxelEngine
         }
 
         protected GameWindow _window;
+        protected ImGuiController _controller;
 
         public abstract void OnUpdateFrame(FrameEventArgs args);
         public abstract void OnRenderFrame(FrameEventArgs args);

@@ -69,7 +69,7 @@ namespace OpenTkVoxelEngine
             -0.5f,  0.5f, -0.5f, 1.0f 
         };
 
-        public ParralaxRaymarcher(GameWindow window) : base(window)
+        public ParralaxRaymarcher(GameWindow window, ImGuiController controller) : base(window, controller)
         {
 
         }

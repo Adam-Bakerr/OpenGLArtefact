@@ -40,7 +40,7 @@ namespace OpenTkVoxelEngine
         //Sparse Voxel Octree
         SVO svo;
 
-        public VoxelScene(GameWindow window) : base(window)
+        public VoxelScene(GameWindow window, ImGuiController controller) : base(window,controller)
         {
 
         }
