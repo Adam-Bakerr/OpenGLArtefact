@@ -73,7 +73,7 @@ namespace Engine
             _scenes.Add(new ParralaxRaymarcher(this, _controller));
             _scenes.Add(new SurfaceNets(this, _controller));
 
-            ActiveScene = _scenes[4];
+            ActiveScene = _scenes[2];
             ActiveScene.SetActive(true);
         }
 
