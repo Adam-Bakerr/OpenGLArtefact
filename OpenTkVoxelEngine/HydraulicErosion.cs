@@ -2,11 +2,16 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using Dear_ImGui_Sample;
+using Engine;
 using ImGuiNET;
+using OpenTK.Compute.OpenCL;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -82,19 +87,19 @@ namespace OpenTkVoxelEngine
         //Textures
         int _biomeTexture;
 
-        string _vertexPath = "erosionVert.vert";
-        string _fragmentPath = "erosionFrag.frag";
-        string _createVertexComputePath = "createVertcies.compute";
-        string _createIndicesComputePath = "createIndices.compute";
-        string _noiseApplicationComputePath = "noiseApplication.compute";
-        string _fallOffComputePath = "fallOffApplication.compute";
-        string _normalCalculationComputePath = "normalCalculation.compute";
-        string _biomeGenerationComputePath = "biomeGeneration.compute";
-        string _biomeApplicationShaderPath = "applyBiomeMap.compute";
-        string _erosionComputePath = "erode2.compute";
-        string _particleCreationPath = "createParticles.compute";
-        string _postErosionPassOnePath = "postErosionSmoothingPassOne.compute";
-        string _postErosionPassTwoPath = "postErosionSmoothingPassTwo.compute";
+        string _vertexPath = "Shaders/ErosionShaders/erosionVert.vert";
+        string _fragmentPath = "Shaders/ErosionShaders/erosionFrag.frag";
+        string _createVertexComputePath = "Shaders/ErosionShaders/createVertcies.compute";
+        string _createIndicesComputePath = "Shaders/ErosionShaders/createIndices.compute";
+        string _noiseApplicationComputePath = "Shaders/ErosionShaders/noiseApplication.compute";
+        string _fallOffComputePath = "Shaders/ErosionShaders/fallOffApplication.compute";
+        string _normalCalculationComputePath = "Shaders/ErosionShaders/normalCalculation.compute";
+        string _biomeGenerationComputePath = "Shaders/ErosionShaders/biomeGeneration.compute";
+        string _biomeApplicationShaderPath = "Shaders/ErosionShaders/applyBiomeMap.compute";
+        string _erosionComputePath = "Shaders/ErosionShaders/erode2.compute";
+        string _particleCreationPath = "Shaders/ErosionShaders/createParticles.compute";
+        string _postErosionPassOnePath = "Shaders/ErosionShaders/postErosionSmoothingPassOne.compute";
+        string _postErosionPassTwoPath = "Shaders/ErosionShaders/postErosionSmoothingPassTwo.compute";
 
         //Shader Noise Variables
         int _minMaxPrecisionFactor = 10000000;
@@ -188,8 +193,10 @@ namespace OpenTkVoxelEngine
             currentParticleCount = particleCount;
 
 
+            Shader testShader = new Shader("OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionVert.vert", "OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionFrag.frag", true);
 
-
+             //"OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionFrag.frag"
+            //"OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionVert.vert"
             //Vertex array object buffer
             _vao = new VAO();
 

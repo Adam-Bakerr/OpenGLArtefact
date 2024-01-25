@@ -17,7 +17,9 @@
 mono_crash.*
 
 # Build results
-[Dd]ebug/
+#[Dd]ebug/
+**/[Bb]in/[Dd]ebug/net8.0/*
+!**/[Bb]in/[Dd]ebug/net8.0/Shaders/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/

@@ -31,10 +31,10 @@ namespace OpenTkVoxelEngine
         ComputeShader _marchCubesShader;
 
         //Shader Paths
-        string _vertexPath = "SurfaceNets/shader.vert";
-        string _fragmentPath = "SurfaceNets/shader.frag";
-        string _distanceFieldGenerationPath = "SurfaceNets/createDF.compute";
-        string _marchCubesShaderPath = "SurfaceNets/MarchCubesShader.compute";
+        string _vertexPath = "Shaders/SurfaceNets/shader.vert";
+        string _fragmentPath = "Shaders/SurfaceNets/shader.frag";
+        string _distanceFieldGenerationPath = "Shaders/SurfaceNets/createDF.compute";
+        string _marchCubesShaderPath = "Shaders/SurfaceNets/MarchCubesShader.compute";
 
         //Buffers
         VAO _vao;

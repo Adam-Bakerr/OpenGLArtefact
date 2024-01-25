@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using Engine;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
@@ -110,6 +111,110 @@ namespace OpenTkVoxelEngine
 
         }
 
+        public Shader(string vertexAssemblyPath, string fragmentAssemblyPath,bool isAssembly)
+        {
+            if (vertexAssemblyPath == "" || fragmentAssemblyPath == "") return;
+
+            string vertexSource, fragmentSource;
+
+            //Read From Assembly Shaders To Strings
+            using Stream strv = typeof(MainProgram).Assembly.GetManifestResourceStream(vertexAssemblyPath);
+            using (StreamReader reader = new StreamReader(strv))
+            {
+                vertexSource = reader.ReadToEnd();
+            }
+
+            using Stream strf= typeof(MainProgram).Assembly.GetManifestResourceStream(fragmentAssemblyPath);
+            using (StreamReader reader = new StreamReader(strf))
+            {
+                fragmentSource = reader.ReadToEnd();
+            }
+
+            //Create shaders from source
+            var vertexShader = GL.CreateShader(ShaderType.VertexShader);
+            GL.ShaderSource(vertexShader, vertexSource);
+
+            var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+            GL.ShaderSource(fragmentShader, fragmentSource);
+
+            //Compile shaders and check for errors
+            GL.CompileShader(vertexShader);
+
+            //Get error status
+            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out int vertexStatus);
+
+            //If it has failed
+            if (vertexStatus == 0)
+            {
+                string infoLog = GL.GetShaderInfoLog(vertexShader);
+                Console.WriteLine("Vertex compile error" + infoLog);
+            }
+
+            //Compile shaders and check for errors
+            GL.CompileShader(fragmentShader);
+
+            //Get error status
+            GL.GetShader(fragmentShader, ShaderParameter.CompileStatus, out int fragStatus);
+
+            //If it has failed
+            if (fragStatus == 0)
+            {
+                string infoLog = GL.GetShaderInfoLog(fragmentShader);
+                Console.WriteLine("Fragment compile error" + infoLog);
+            }
+
+
+
+            //Create shader handle
+
+            _handle = GL.CreateProgram();
+
+            //Attached the created shaders to the handle
+            GL.AttachShader(_handle, vertexShader);
+            GL.AttachShader(_handle, fragmentShader);
+
+
+            //Link the shader handle
+            GL.LinkProgram(_handle);
+
+            //Check for errors with the linking process
+            GL.GetProgram(_handle, GetProgramParameterName.LinkStatus, out int linkStatus);
+
+            if (linkStatus == 0)
+            {
+                string infoLog = GL.GetProgramInfoLog(_handle);
+                Console.WriteLine("Shader Link Error: " + infoLog);
+            }
+
+
+
+            // Get all unifroms from the shader
+            GL.GetProgram(_handle, GetProgramParameterName.ActiveUniforms, out var numberOfUniforms);
+
+            // Next, allocate the dictionary to hold the locations.
+            _uniformLocations = new Dictionary<string, int>();
+
+            // Loop over all the uniforms,
+            for (var i = 0; i < numberOfUniforms; i++)
+            {
+                // get the name of this uniform,
+                var key = GL.GetActiveUniform(_handle, i, out _, out _);
+
+                // get the location,
+                var location = GL.GetUniformLocation(_handle, key);
+
+                // and then add it to the dictionary.
+                _uniformLocations.Add(key, location);
+            }
+
+
+            //Do Some cleanup
+            GL.DetachShader(_handle, vertexShader);
+            GL.DetachShader(_handle, fragmentShader);
+            GL.DeleteShader(vertexShader);
+            GL.DeleteShader(fragmentShader);
+
+        }
 
         public void Use()
         {
