@@ -87,19 +87,21 @@ namespace OpenTkVoxelEngine
         //Textures
         int _biomeTexture;
 
+
+        string _assemblyPath = "OpenTkVoxelEngine.Shaders.ErosionShaders";
         string _vertexPath = "Shaders/ErosionShaders/erosionVert.vert";
         string _fragmentPath = "Shaders/ErosionShaders/erosionFrag.frag";
-        string _createVertexComputePath = "Shaders/ErosionShaders/createVertcies.compute";
-        string _createIndicesComputePath = "Shaders/ErosionShaders/createIndices.compute";
-        string _noiseApplicationComputePath = "Shaders/ErosionShaders/noiseApplication.compute";
-        string _fallOffComputePath = "Shaders/ErosionShaders/fallOffApplication.compute";
-        string _normalCalculationComputePath = "Shaders/ErosionShaders/normalCalculation.compute";
-        string _biomeGenerationComputePath = "Shaders/ErosionShaders/biomeGeneration.compute";
-        string _biomeApplicationShaderPath = "Shaders/ErosionShaders/applyBiomeMap.compute";
-        string _erosionComputePath = "Shaders/ErosionShaders/erode2.compute";
-        string _particleCreationPath = "Shaders/ErosionShaders/createParticles.compute";
-        string _postErosionPassOnePath = "Shaders/ErosionShaders/postErosionSmoothingPassOne.compute";
-        string _postErosionPassTwoPath = "Shaders/ErosionShaders/postErosionSmoothingPassTwo.compute";
+        string _createVertexComputePath = "createVertcies.compute";
+        string _createIndicesComputePath = "createIndices.compute";
+        string _noiseApplicationComputePath = "noiseApplication.compute";
+        string _fallOffComputePath = "fallOffApplication.compute";
+        string _normalCalculationComputePath = "normalCalculation.compute";
+        string _biomeGenerationComputePath = "biomeGeneration.compute";
+        string _biomeApplicationShaderPath = "applyBiomeMap.compute";
+        string _erosionComputePath = "erode2.compute";
+        string _particleCreationPath = "createParticles.compute";
+        string _postErosionPassOnePath = "postErosionSmoothingPassOne.compute";
+        string _postErosionPassTwoPath = "postErosionSmoothingPassTwo.compute";
 
         //Shader Noise Variables
         int _minMaxPrecisionFactor = 10000000;
@@ -192,11 +194,6 @@ namespace OpenTkVoxelEngine
 
             currentParticleCount = particleCount;
 
-
-            Shader testShader = new Shader("OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionVert.vert", "OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionFrag.frag", true);
-
-             //"OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionFrag.frag"
-            //"OpenTkVoxelEngine.bin.Debug.net8._0.Shaders.ErosionShaders.erosionVert.vert"
             //Vertex array object buffer
             _vao = new VAO();
 
@@ -226,64 +223,64 @@ namespace OpenTkVoxelEngine
         void CreateShaders()
         {
             //Our material shader
-            _terrainShader = new Shader(_vertexPath, _fragmentPath);
+            _terrainShader = new Shader(_assemblyPath, "erosionVert.vert", "erosionFrag.frag");
             _terrainShader.Use();
             _terrainShader.SetInt("biomeMap",0);
 
             //Compute shader that handles the creation of verticies
-            _vertexCreationShader = new ComputeShader(_createVertexComputePath);
+            _vertexCreationShader = new ComputeShader(_assemblyPath, _createVertexComputePath);
             _vertexCreationShader.use();
             UpdateVertexCreationShader();
 
             //Compute shader that handles the creation of indices
-            _indexCreationShader = new ComputeShader(_createIndicesComputePath);
+            _indexCreationShader = new ComputeShader(_assemblyPath, _createIndicesComputePath);
             _indexCreationShader.use();
             UpdateIndexCreationShader();
 
             //Compute shader that handles applying a base noise map onto the mesh
-            _noiseApplicationShader = new ComputeShader(_noiseApplicationComputePath);
+            _noiseApplicationShader = new ComputeShader(_assemblyPath, _noiseApplicationComputePath);
             _noiseApplicationShader.use();
             _noiseVariables = new FBMNoiseVariables(0,4,Vector3.Zero, .6f,.8f,1,0,2,0.05f,0,150,1);
             UpdateHeightmapNoiseVariables();
 
             //Compute shader that handles applying a falloff noise map onto the mesh
-            _fallOffApplicationShader = new ComputeShader(_fallOffComputePath);
+            _fallOffApplicationShader = new ComputeShader(_assemblyPath, _fallOffComputePath);
             _fallOffApplicationShader.use();
             _falloffNoiseVariables = new FBMNoiseVariables(0, 3, new Vector3(0,-0.34f,0), 1, .34f, 1, 0, 1, 0.06f, 0, 150,1.77f);
             UpdateFallOffmapNoiseVariables();
 
             //Compute shader that handles recalculation normals of the mesh
-            _normalCalculationShader = new ComputeShader(_normalCalculationComputePath);
+            _normalCalculationShader = new ComputeShader(_assemblyPath, _normalCalculationComputePath);
             _normalCalculationShader.use();
             UpdateNormalShader();
 
 
             //Compute shader that handles the creation of a biome texture for the mesh
-            _biomeGenerationShader = new ComputeShader(_biomeGenerationComputePath);
+            _biomeGenerationShader = new ComputeShader(_assemblyPath, _biomeGenerationComputePath);
             _biomeGenerationShader.use();
             _humitidyNoiseVariables = new FBMNoiseVariables(0, 7, Vector3.Zero, .4f, .8f, .5f, 0, 1, 0.15f, 0, 1,1);
             CreateBiomeTexture();
             UpdateBiomeShader();
             UpdateHumidityNoiseVariables();
 
-            _biomeApplicationShader = new ComputeShader(_biomeApplicationShaderPath);
+            _biomeApplicationShader = new ComputeShader(_assemblyPath, _biomeApplicationShaderPath);
             _biomeApplicationShader.use();
             UpdateBiomeApplcationShader();
 
-            _erosionShader = new ComputeShader(_erosionComputePath);
+            _erosionShader = new ComputeShader(_assemblyPath, _erosionComputePath);
             _erosionShader.use();
             CreateErosionBrushes();
             UpdateErosionShader();
 
-            _particleCreationShader = new ComputeShader(_particleCreationPath);
+            _particleCreationShader = new ComputeShader(_assemblyPath, _particleCreationPath);
             _particleCreationShader.use();
             UpdateParticleCreationShader();
 
 
-            _postErosionPassOne = new ComputeShader(_postErosionPassOnePath);
+            _postErosionPassOne = new ComputeShader(_assemblyPath, _postErosionPassOnePath);
             _postErosionPassOne.use();
 
-            _postErosionPassTwo = new ComputeShader(_postErosionPassTwoPath);
+            _postErosionPassTwo = new ComputeShader(_assemblyPath, _postErosionPassTwoPath);
             _postErosionPassTwo.use();
 
             UpdatePostErosionPasses();
@@ -447,7 +444,7 @@ namespace OpenTkVoxelEngine
             {
                 _erosionShader.Dispose();
 
-                _erosionShader = new ComputeShader(_erosionComputePath);
+                _erosionShader = new ComputeShader(_assemblyPath, _erosionComputePath);
                 _erosionShader.use();
                 CreateErosionBrushes();
                 UpdateErosionShader();

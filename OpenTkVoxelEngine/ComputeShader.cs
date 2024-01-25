@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using Engine;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
@@ -17,6 +18,7 @@ namespace OpenTkVoxelEngine
             GL.UseProgram(_handle);
         }
 
+        //Load From File
         public ComputeShader(string Path)
         {
             //Read Shader Soruce Code
@@ -24,6 +26,52 @@ namespace OpenTkVoxelEngine
 
             var compute = GL.CreateShader(ShaderType.ComputeShader);
             GL.ShaderSource(compute, ShaderSoruce);
+            GL.CompileShader(compute);
+
+            //Get the compile status of the shader to see if it compiled 
+            GL.GetShader(compute, ShaderParameter.CompileStatus, out int successCompute);
+            //Check to see if failed
+            if (successCompute == 0)
+            {
+                string infoLog = GL.GetShaderInfoLog(compute);
+                Console.WriteLine(infoLog);
+            }
+
+            _handle = GL.CreateProgram();
+            GL.AttachShader(_handle, compute);
+            GL.LinkProgram(_handle);
+
+            //Get the Link status of the program
+            GL.GetProgram(_handle, GetProgramParameterName.LinkStatus, out int successProgram);
+            //Check to see if failed
+            if (successProgram == 0)
+            {
+                string infoLog = GL.GetShaderInfoLog(_handle);
+                Console.WriteLine(infoLog);
+            }
+
+            GL.DetachShader(_handle, compute);
+
+            GL.DeleteShader(compute);
+
+        }
+        //Load From Assembly
+        public ComputeShader(string AssemblyPath, string FileName)
+        {
+            if (AssemblyPath == "" || FileName == "") return;
+
+            string computeSource;
+
+            //Read From Assembly Shaders To Strings
+            using Stream strv = typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath + "." + FileName);
+            using (StreamReader reader = new StreamReader(strv))
+            {
+                computeSource = reader.ReadToEnd();
+            }
+
+
+            var compute = GL.CreateShader(ShaderType.ComputeShader);
+            GL.ShaderSource(compute, computeSource);
             GL.CompileShader(compute);
 
             //Get the compile status of the shader to see if it compiled 

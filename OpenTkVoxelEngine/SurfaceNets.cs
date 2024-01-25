@@ -31,10 +31,11 @@ namespace OpenTkVoxelEngine
         ComputeShader _marchCubesShader;
 
         //Shader Paths
-        string _vertexPath = "Shaders/SurfaceNets/shader.vert";
-        string _fragmentPath = "Shaders/SurfaceNets/shader.frag";
-        string _distanceFieldGenerationPath = "Shaders/SurfaceNets/createDF.compute";
-        string _marchCubesShaderPath = "Shaders/SurfaceNets/MarchCubesShader.compute";
+        string _assemblyPath = "OpenTkVoxelEngine.Shaders.SurfaceNets";
+        string _vertexPath = "shader.vert";
+        string _fragmentPath = "shader.frag";
+        string _distanceFieldGenerationPath = "createDF.compute";
+        string _marchCubesShaderPath = "MarchCubesShader.compute";
 
         //Buffers
         VAO _vao;
@@ -201,18 +202,18 @@ namespace OpenTkVoxelEngine
         public void CreateShaders()
         {
             //Create the shader used to draw verts to the screen
-            _shader = new Shader(_vertexPath, _fragmentPath);
+            _shader = new Shader(_assemblyPath, _vertexPath, _fragmentPath);
             UpdateDrawingShader();
 
             //Create our cube df data
-            _dfShader = new ComputeShader(_distanceFieldGenerationPath);
-            _heightMapNoiseVariables = new FBMNoiseVariables(0, 4, Vector3.Zero, .6f, .8f, 1, 0, 2, 0.05f, 0, 150, 1);
-            _caveMapNoiseVariables = new FBMNoiseVariables(0, 1, Vector3.Zero, .6f, .2f, 1, 0, 2, 0.05f, 0, 150, 1);
+            _dfShader = new ComputeShader(_assemblyPath, _distanceFieldGenerationPath);
+            _heightMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 19.935f, 0.105f, 1, 150, 1);
+            _caveMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .2f, 4.31f, 0, 19.935f, 0.05f, 0, 150, 1);
 
             UpdateDFShader();
 
             //Create the marching cubes shaders
-            _marchCubesShader = new ComputeShader(_marchCubesShaderPath);
+            _marchCubesShader = new ComputeShader(_assemblyPath, _marchCubesShaderPath);
             UpdateMarchCubesShader();
 
 
@@ -362,16 +363,16 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("HeightMap maxHeight", ref _heightMapNoiseVariables.maxHeight)) OnDFUpdate();
             ImGui.Spacing();
             ImGui.Text("Cave Map");
-            if (ImGui.DragInt("HeightMap seed", ref _caveMapNoiseVariables.seed, 1)) OnDFUpdate();
-            if (ImGui.DragInt("HeightMap numLayers", ref _caveMapNoiseVariables.NumLayers, 1, 0, 8)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap baseRoughness", ref _caveMapNoiseVariables.baseRoughness, .005f, 0)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap Roughness", ref _caveMapNoiseVariables.roughness, .005f, 0)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap persistence", ref _caveMapNoiseVariables.persistence, .01f, 0)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap minValue", ref _caveMapNoiseVariables.minValue)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap strength", ref _caveMapNoiseVariables.strength, 0.005f, 0.0001f)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap scale", ref _caveMapNoiseVariables.scale, .005f, 0.0001f)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap minHeight", ref _caveMapNoiseVariables.minHeight)) OnDFUpdate();
-            if (ImGui.DragFloat("HeightMap maxHeight", ref _caveMapNoiseVariables.maxHeight)) OnDFUpdate();
+            if (ImGui.DragInt("Cavemap seed", ref _caveMapNoiseVariables.seed, 1)) OnDFUpdate();
+            if (ImGui.DragInt("Cavemap numLayers", ref _caveMapNoiseVariables.NumLayers, 1, 0, 8)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap baseRoughness", ref _caveMapNoiseVariables.baseRoughness, .005f, 0)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap Roughness", ref _caveMapNoiseVariables.roughness, .005f, 0)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap persistence", ref _caveMapNoiseVariables.persistence, .01f, 0)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap minValue", ref _caveMapNoiseVariables.minValue)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap strength", ref _caveMapNoiseVariables.strength, 0.005f, 0.0001f)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap scale", ref _caveMapNoiseVariables.scale, .005f, 0.0001f)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap minHeight", ref _caveMapNoiseVariables.minHeight)) OnDFUpdate();
+            if (ImGui.DragFloat("Cavemap maxHeight", ref _caveMapNoiseVariables.maxHeight)) OnDFUpdate();
             ImGui.Spacing();
             if (ImGui.DragFloat("IsoLevel", ref _surfaceLevel, .025f, 0, 1)) OnDFUpdate();
             if (ImGui.DragFloat("Grass Slope Threshold", ref _grassSlopeThreshold, .025f, 0, 1))OnDFUpdate();

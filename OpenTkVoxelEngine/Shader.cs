@@ -111,20 +111,20 @@ namespace OpenTkVoxelEngine
 
         }
 
-        public Shader(string vertexAssemblyPath, string fragmentAssemblyPath,bool isAssembly)
+        public Shader(string AssemblyPath,string vertexFileName, string fragmentFileName)
         {
-            if (vertexAssemblyPath == "" || fragmentAssemblyPath == "") return;
+            if (AssemblyPath == "" || vertexFileName == "" || fragmentFileName == "") return;
 
             string vertexSource, fragmentSource;
 
             //Read From Assembly Shaders To Strings
-            using Stream strv = typeof(MainProgram).Assembly.GetManifestResourceStream(vertexAssemblyPath);
+            using Stream strv = typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath +"."+ vertexFileName);
             using (StreamReader reader = new StreamReader(strv))
             {
                 vertexSource = reader.ReadToEnd();
             }
 
-            using Stream strf= typeof(MainProgram).Assembly.GetManifestResourceStream(fragmentAssemblyPath);
+            using Stream strf= typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath + "." + fragmentFileName);
             using (StreamReader reader = new StreamReader(strf))
             {
                 fragmentSource = reader.ReadToEnd();

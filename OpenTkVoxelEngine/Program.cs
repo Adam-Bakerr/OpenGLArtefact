@@ -66,14 +66,17 @@ namespace Engine
             UpdateFrequency = 0;
             //VSync = VSyncMode.On;
 
-            _scenes = new List<IScene>();
-            _scenes.Add(new CubeScene(this,_controller));
-            _scenes.Add(new VoxelScene(this, _controller));
-            _scenes.Add(new HydraulicErosion(this, _controller));
-            _scenes.Add(new ParralaxRaymarcher(this, _controller));
-            _scenes.Add(new SurfaceNets(this, _controller));
+            _scenes = new List<IScene>
+            {
+                new CubeScene(this,_controller),
+                new VoxelScene(this, _controller),
+                new HydraulicErosion(this, _controller),
+                new ParralaxRaymarcher(this, _controller),
+                new SurfaceNets(this, _controller)
+            };
 
-            ActiveScene = _scenes[4];
+
+            ActiveScene = _scenes[2];
             ActiveScene.SetActive(true);
         }
 

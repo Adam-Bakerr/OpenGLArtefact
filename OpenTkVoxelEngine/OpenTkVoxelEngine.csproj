@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="bin\Debug\net8.0\Shaders\**" />
+    <EmbeddedResource Include="Shaders\**" />
   </ItemGroup>
 
   <ItemGroup>
