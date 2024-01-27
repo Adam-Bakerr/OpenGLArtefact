@@ -398,7 +398,8 @@ void main()
 		if (cubeCorners[v].w <= surfaceLevel) cubeIndex |= 1 << v;
     }
 
-    //uint counterValue = atomicCounterAdd(counter,15);
+    //Dont try to add verticies if we are fully contained or not solid
+    if(cubeIndex == 0 || cubeIndex == 255) return;
 
     // Create triangles for current cube configuration
     for (int i = 0; i < 15; i += 3)

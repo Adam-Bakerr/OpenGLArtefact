@@ -154,8 +154,8 @@ void main()
 	int index = id.y * vertexCount.x * vertexCount.x +  id.z * vertexCount.x + id.x;
 
 	//Initalise position vectors
-	float value = ((fbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / id.y;
-	float caveValue = ((cfbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / id.y;
+	float value = ((fbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / max(float(id.y),.0001);
+	float caveValue = ((cfbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / max(float(id.y),.0001);
 	if(id.x == 0 || id.x == vertexCount.x - 1 || id.z == 0 || id.z == vertexCount.z - 1 || id.y == 0){
 	value = 0;
 	}

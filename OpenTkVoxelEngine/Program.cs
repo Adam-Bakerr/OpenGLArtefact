@@ -24,7 +24,8 @@ namespace Engine
             {
                 ClientSize = new Vector2i(1920,1080),
                 Title = "StoxelEngine",
-                Flags = ContextFlags.ForwardCompatible
+                Flags = ContextFlags.ForwardCompatible,
+                Location = new Vector2i(1024,1024)
             };
 
 
@@ -44,7 +45,7 @@ namespace Engine
     public class Window : GameWindow{
         public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) : base(gameWindowSettings, nativeWindowSettings)
         {
-
+            
         }
 
         //Imgui Controller
@@ -59,7 +60,8 @@ namespace Engine
         {
             base.OnLoad();
 
-
+            GL.Viewport(0, 0, ClientSize.X, ClientSize.Y);
+            
             //Setup imgui controller
             _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
 
@@ -72,11 +74,12 @@ namespace Engine
                 new VoxelScene(this, _controller),
                 new HydraulicErosion(this, _controller),
                 new ParralaxRaymarcher(this, _controller),
-                new SurfaceNets(this, _controller)
+                new MarchingCubes(this, _controller),
+                new SurfaceNets(this,_controller)
             };
 
 
-            ActiveScene = _scenes[2];
+            ActiveScene = _scenes[5];
             ActiveScene.SetActive(true);
         }
 

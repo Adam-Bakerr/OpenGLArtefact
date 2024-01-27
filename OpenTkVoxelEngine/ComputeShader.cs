@@ -34,7 +34,7 @@ namespace OpenTkVoxelEngine
             if (successCompute == 0)
             {
                 string infoLog = GL.GetShaderInfoLog(compute);
-                Console.WriteLine(infoLog);
+                Console.WriteLine(infoLog + "In Shader" + Path);
             }
 
             _handle = GL.CreateProgram();
@@ -47,7 +47,7 @@ namespace OpenTkVoxelEngine
             if (successProgram == 0)
             {
                 string infoLog = GL.GetShaderInfoLog(_handle);
-                Console.WriteLine(infoLog);
+                Console.WriteLine(infoLog + "In Shader" + Path);
             }
 
             GL.DetachShader(_handle, compute);
@@ -80,7 +80,7 @@ namespace OpenTkVoxelEngine
             if (successCompute == 0)
             {
                 string infoLog = GL.GetShaderInfoLog(compute);
-                Console.WriteLine(infoLog);
+                Console.WriteLine(infoLog + "In Shader" + FileName);
             }
 
             _handle = GL.CreateProgram();
@@ -93,7 +93,7 @@ namespace OpenTkVoxelEngine
             if (successProgram == 0)
             {
                 string infoLog = GL.GetShaderInfoLog(_handle);
-                Console.WriteLine(infoLog);
+                Console.WriteLine(infoLog + "In Shader" + FileName);
             }
 
             GL.DetachShader(_handle, compute);

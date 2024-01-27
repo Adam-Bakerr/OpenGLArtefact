@@ -20,7 +20,7 @@ using IntPtr = System.IntPtr;
 
 namespace OpenTkVoxelEngine
 {
-    internal class SurfaceNets : IScene
+    internal class MarchingCubes : IScene
     {
         //Camera
         Camera _camera;
@@ -28,32 +28,29 @@ namespace OpenTkVoxelEngine
         //Shaders
         Shader _shader;
         ComputeShader _dfShader;
-        ComputeShader _featurePointsShader;
-        ComputeShader _createVertexShader;
+        ComputeShader _marchCubesShader;
 
         //Shader Paths
-        string _assemblyPath = "OpenTkVoxelEngine.Shaders.DualContouring";
+        string _assemblyPath = "OpenTkVoxelEngine.Shaders.MarchingCubes";
         string _vertexPath = "shader.vert";
         string _fragmentPath = "shader.frag";
         string _distanceFieldGenerationPath = "createDF.compute";
-        string _marchCubesShaderPath = "dualContour.compute";
-        string _createVertexPath = "CreateVerticies.compute";
+        string _marchCubesShaderPath = "MarchCubesShader.compute";
 
         //Buffers
         VAO _vao;
         int _vbo;
         int _dfbo; //Distance Field Buffer Object
-        int _fpbo; //triangle connection buffer object
+        int _tcbo; //triangle connection buffer object
         int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        Vector3i _dimensions = new Vector3i(64, 64, 64);
+        Vector3i _dimensions = new Vector3i(200, 128, 200);
         Vector3 _resolution = new Vector3(.1f);
         int _workGroupSize = 8;
         float _surfaceLevel = .5f;
         float _grassBlendAmount = .875f;
         float _grassSlopeThreshold = .15f;
-        float _dualContourErrorValue = .1f;
 
         uint vertexCounterValue;
 
@@ -86,7 +83,7 @@ namespace OpenTkVoxelEngine
             new vertex(new Vector4(0.5f, 0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
         };
 
-        public SurfaceNets(GameWindow window, ImGuiController controller) : base(window, controller)
+        public MarchingCubes(GameWindow window, ImGuiController controller) : base(window, controller)
         {
 
         }
@@ -104,7 +101,7 @@ namespace OpenTkVoxelEngine
             //Vertex Buffer
             _vbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, VertexSize() * maxVertexCount, nint.Zero, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, VertexSize() * maxVertexCount, nint.Zero, BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _vbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
@@ -117,15 +114,15 @@ namespace OpenTkVoxelEngine
             //DF buffer
             _dfbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer,_dfbo);
-            GL.BufferData(BufferTarget.ShaderStorageBuffer,sizeof(float) *4* VertexCount(),nint.Zero,BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer,sizeof(float) * VertexCount(),nint.Zero,BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _dfbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
-            //Feature Point buffer
-            _fpbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _fpbo);
-            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(float) * 4 * VertexCount(), nint.Zero, BufferUsageHint.DynamicDraw);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _fpbo);
+            //trianglition buffer
+            _tcbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _tcbo);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer, sizeof(int) * 4096, triangulation, BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _tcbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
             _vao = new VAO();
@@ -150,84 +147,55 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
         }
 
-        float centerOffset = 0;
-
         public void RunShaders()
         {
             ResetAtomicCounter();
 
-
-            ////////////////////Create DF Values////////////////////////////
             int dfx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X ), 1) / _workGroupSize));
+
             int dfy = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y), 1) / _workGroupSize));
+
             int dfz = (int)(MathF.Ceiling(MathF.Max((_dimensions.Z), 1) / _workGroupSize));
 
+
+            //Create DF Values
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _dfbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _dfbo);
 
             _dfShader.use();
-            _dfShader.SetFloat("centerOffset", centerOffset);
 
             GL.DispatchCompute(dfx, dfy, dfz);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
-            ///////////////////////////////////////////////////////////////
 
-
-            ////////////////////Find Feature Points////////////////////////////
+            //March Cubes
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _dfbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _dfbo);
-
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _fpbo);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _fpbo);
-
-
-            _featurePointsShader.use();
-
-            int fpx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X), 1) / _workGroupSize));
-            int fpy = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y),1) / _workGroupSize));
-            int fpz = (int)(MathF.Ceiling(MathF.Max((_dimensions.Z), 1) / _workGroupSize));
-            
-            GL.DispatchCompute(fpx, fpy, fpz);
-            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
-
-            // Used to retreive data
-            /*Vector4[] testout = new Vector4[4 * VertexCount()];
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer,_dfbo);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _fpbo);
-            GL.GetBufferSubData(BufferTarget.ShaderStorageBuffer, 0, sizeof(float) * 4 * VertexCount(),testout);*/
-
-
-            ///////////////////////////////////////////////////////////////
-
-            /// ////////////////////Create Verticies////////////////////////////
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _dfbo);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _dfbo);
-
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _fpbo);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _fpbo);
 
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _vbo);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _vbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _vbo);
+
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _tcbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _tcbo);
 
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, _vcbo);
             GL.BindBufferBase(BufferRangeTarget.AtomicCounterBuffer, 3, _vcbo);
 
-            _createVertexShader.use();
+            _marchCubesShader.use();
 
-            int cvx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X * _dimensions.Y * _dimensions.Z), 1) / 512.0f));
+            int x = (int)(MathF.Ceiling(MathF.Max((_dimensions.X - 1), 1) / _workGroupSize));
 
-            GL.DispatchCompute(cvx, 1, 1);
+            int y = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y - 1),1) / _workGroupSize));
+
+            int z = (int)(MathF.Ceiling(MathF.Max((_dimensions.Z - 1), 1) / _workGroupSize)); 
+            GL.DispatchCompute(x, y, z);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
-            ///////////////////////////////////////////////////////////////
-
-
 
             GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer,0,sizeof(uint),ref vertexCounterValue);
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
-            //Console.WriteLine(vertexCounterValue/3);
+
+
 
         }
 
@@ -245,12 +213,8 @@ namespace OpenTkVoxelEngine
             UpdateDFShader();
 
             //Create the marching cubes shaders
-            _featurePointsShader = new ComputeShader(_assemblyPath, _marchCubesShaderPath);
+            _marchCubesShader = new ComputeShader(_assemblyPath, _marchCubesShaderPath);
             UpdateMarchCubesShader();
-
-            //create the vertexCreationShader
-            _createVertexShader = new ComputeShader(_assemblyPath, _createVertexPath);
-            UpdateVertexCreationShader();
 
 
         }
@@ -261,13 +225,6 @@ namespace OpenTkVoxelEngine
             _shader.SetIVec3("_dimensions",_dimensions);
         }
 
-        public void UpdateVertexCreationShader()
-        {
-            _createVertexShader.use();
-            _createVertexShader.SetVec3("resolution", _resolution);
-            _createVertexShader.SetIVec3("vertexCount", _dimensions);
-            _createVertexShader.SetFloat("surfaceLevel", _surfaceLevel);
-        }
 
         public void UpdateDFShader()
         {
@@ -297,19 +254,17 @@ namespace OpenTkVoxelEngine
             _dfShader.SetFloat("baseCaveMap.scale", _caveMapNoiseVariables.scale);
             _dfShader.SetFloat("baseCaveMap.minHeight", _caveMapNoiseVariables.minHeight);
             _dfShader.SetFloat("baseCaveMap.maxHeight", _caveMapNoiseVariables.maxHeight);
-
-            _dfShader.SetFloat("errorValue", _dualContourErrorValue);
         }
 
         public void UpdateMarchCubesShader()
         {
-            _featurePointsShader.use();
-            _featurePointsShader.SetVec3("resolution", _resolution);
-            _featurePointsShader.SetIVec3("vertexCount", _dimensions);
-            _featurePointsShader.SetFloat("surfaceLevel",_surfaceLevel);
+            _marchCubesShader.use();
+            _marchCubesShader.SetVec3("resolution", _resolution);
+            _marchCubesShader.SetIVec3("vertexCount", _dimensions);
+            _marchCubesShader.SetFloat("surfaceLevel",_surfaceLevel);
 
-            _featurePointsShader.SetFloat("_GrassSlopeThreshold", _grassSlopeThreshold);
-            _featurePointsShader.SetFloat("_GrassBlendAmount", _grassBlendAmount);
+            _marchCubesShader.SetFloat("_GrassSlopeThreshold", _grassSlopeThreshold);
+            _marchCubesShader.SetFloat("_GrassBlendAmount", _grassBlendAmount);
         }
 
         public override void OnUpdateFrame(FrameEventArgs args)
@@ -317,12 +272,9 @@ namespace OpenTkVoxelEngine
             _camera.OnUpdateFrame(args);
         }
 
-        float _totalTime = 0;
         public override void OnRenderFrame(FrameEventArgs args)
         {
-            if(_window.IsKeyDown(Keys.P))_totalTime += (float)args.Time;
-            centerOffset = MathF.Sin(_totalTime) * 4;
-            OnDFUpdate();
+      
 
             //Update Imgui Controller
             _controller.Update(_window, (float)args.Time);

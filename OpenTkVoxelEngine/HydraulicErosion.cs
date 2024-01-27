@@ -17,6 +17,7 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace OpenTkVoxelEngine
 {
@@ -24,7 +25,7 @@ namespace OpenTkVoxelEngine
     {
 
         //Grid Definitions
-        Vector2i _gridVertexCount = new Vector2i(1024, 1024);
+        Vector2i _gridVertexCount = new Vector2i(512, 512);
         Vector2i _gridVertexCountWithBorder() => _gridVertexCount + (2 * new Vector2i(erosionBrushRadius,erosionBrushRadius));
 
         Vector2 _gridDimensions = new Vector2(25, 25);
@@ -682,9 +683,9 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("scale", ref _humitidyNoiseVariables.scale, .005f, 0.0001f)) UpdateHumidityNoiseVariables();
             if (ImGui.DragFloat("minHeight", ref _humitidyNoiseVariables.minHeight)) UpdateHumidityNoiseVariables();
             if (ImGui.DragFloat("maxHeight", ref _humitidyNoiseVariables.maxHeight)) UpdateHumidityNoiseVariables();
+
+
             ImGui.End();
-
-
             ImGui.Begin("Erosion Settings");
 
             if (ImGui.DragInt("particle count", ref particleCount, 1000)) UpdateErosionShader();
