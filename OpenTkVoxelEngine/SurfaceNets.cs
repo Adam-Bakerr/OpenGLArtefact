@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Runtime.Remoting;
 using System.Text;
 using System.Threading.Tasks;
@@ -60,31 +62,10 @@ namespace OpenTkVoxelEngine
         //noise variables
         HydraulicErosion.FBMNoiseVariables _heightMapNoiseVariables;
         HydraulicErosion.FBMNoiseVariables _caveMapNoiseVariables;
-        struct vertex
-        {
-            public Vector4 aPosition;
-            public Vector4 aColor;
-            public Vector4 aNormal;
 
-            public vertex(Vector4 pos, Vector4 color, Vector4 normal)
-            {
-                aPosition = pos; aColor = color; aNormal = normal;
-            }
-
-            
-        }
-
-        public int TriangleSize() => VertexSize() * 3;
         public int VertexSize() => (sizeof(float) * 12);
         public int VertexCount() => _dimensions.X * _dimensions.Y * _dimensions.Z;
-        public int MaxVertexCount() => (((_dimensions.X-1) * (_dimensions.Y-1) * (_dimensions.Z - 1)) * 20);
 
-        vertex[] _verts = new vertex[]
-        {
-            new vertex(new Vector4(-0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-            new vertex(new Vector4(0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-            new vertex(new Vector4(0.5f, 0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-        };
 
         public SurfaceNets(GameWindow window, ImGuiController controller) : base(window, controller)
         {
@@ -98,7 +79,6 @@ namespace OpenTkVoxelEngine
             int numVoxels = numVoxelsPerAxis.X * numVoxelsPerAxis.Y * numVoxelsPerAxis.Z;
             int maxTriangleCount = numVoxels * 5;
             int maxVertexCount = maxTriangleCount * 4;
-            int maxver = MaxVertexCount();
 
 
             //Vertex Buffer
@@ -117,7 +97,7 @@ namespace OpenTkVoxelEngine
             //DF buffer
             _dfbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer,_dfbo);
-            GL.BufferData(BufferTarget.ShaderStorageBuffer,sizeof(float) *4* VertexCount(),nint.Zero,BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer,sizeof(float) * 4 * VertexCount(),nint.Zero,BufferUsageHint.DynamicDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _dfbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
@@ -170,6 +150,8 @@ namespace OpenTkVoxelEngine
 
             GL.DispatchCompute(dfx, dfy, dfz);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+
+
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
             ///////////////////////////////////////////////////////////////
 
@@ -190,15 +172,8 @@ namespace OpenTkVoxelEngine
             
             GL.DispatchCompute(fpx, fpy, fpz);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
-
-            // Used to retreive data
-            /*Vector4[] testout = new Vector4[4 * VertexCount()];
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer,_dfbo);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _fpbo);
-            GL.GetBufferSubData(BufferTarget.ShaderStorageBuffer, 0, sizeof(float) * 4 * VertexCount(),testout);*/
-
-
             ///////////////////////////////////////////////////////////////
 
             /// ////////////////////Create Verticies////////////////////////////
@@ -216,18 +191,20 @@ namespace OpenTkVoxelEngine
 
             _createVertexShader.use();
 
-            int cvx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X * _dimensions.Y * _dimensions.Z), 1) / 512.0f));
+            int cvx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X ), 1) / _workGroupSize));
+            int cvy = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y ), 1) / _workGroupSize));
+            int cvz = (int)(MathF.Ceiling(MathF.Max((_dimensions.Z), 1) / _workGroupSize));
 
-            GL.DispatchCompute(cvx, 1, 1);
+            GL.DispatchCompute(cvx, cvy, cvz);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
             ///////////////////////////////////////////////////////////////
 
 
-
+            //Get Counter Data To Reduce The Amount Of Verticies Drawn My a order of magnitude 
             GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer,0,sizeof(uint),ref vertexCounterValue);
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
-            //Console.WriteLine(vertexCounterValue/3);
+
 
         }
 
@@ -317,10 +294,13 @@ namespace OpenTkVoxelEngine
             _camera.OnUpdateFrame(args);
         }
 
+
+
+
         float _totalTime = 0;
         public override void OnRenderFrame(FrameEventArgs args)
         {
-            if(_window.IsKeyDown(Keys.P))_totalTime += (float)args.Time;
+            if (_window.IsKeyDown(Keys.P))_heightMapNoiseVariables.centre.X += (float)args.Time;
             centerOffset = MathF.Sin(_totalTime) * 4;
             OnDFUpdate();
 
@@ -336,11 +316,11 @@ namespace OpenTkVoxelEngine
             _shader.SetMatrix4("view", _camera.View());
             _shader.SetMatrix4("projection", _camera.Projection());
 
-            _shader.SetVec3("light.position", Vector3.UnitY);
+            _shader.SetVec3("light.position", Vector3.UnitY + Vector3.UnitY * MathF.Sin(_totalTime) * 8);
             _shader.SetFloat("light.constant", 1.0f);
             _shader.SetFloat("light.linear", 0.09f);
             _shader.SetFloat("light.quadratic", 0.032f);
-            _shader.SetVec3("light.ambient", Vector3.UnitZ * .05f);
+            _shader.SetVec3("light.ambient", Vector3.UnitX * .15f);
             _shader.SetVec3("light.diffuse", new Vector3(0.8f, 0.8f, 0.8f));
             _shader.SetVec3("light.specular", new Vector3(.10f, .10f, .10f));
 
@@ -360,8 +340,14 @@ namespace OpenTkVoxelEngine
         {
         }
 
+        Random testRandom;
+        Octree test;
         public override void OnLoad()
         {
+
+            test = new Octree(new Bounds(Vector3.Zero, _dimensions),2);
+
+            testRandom = new Random();
             var watch = System.Diagnostics.Stopwatch.StartNew();
             //Change the clear color
             GL.ClearColor(Color.Black);

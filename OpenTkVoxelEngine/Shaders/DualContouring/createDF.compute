@@ -144,7 +144,7 @@ float cfbm(vec3 x) {
 }
 
 float f(vec3 Pos){
-	return fbm(vec3(Pos.x * resolution.x,Pos.y * resolution.y,Pos.z * resolution.z));
+	return 2.0/length((vertexCount/2) - vec3(Pos));
 }
 
 vec3 GetGradient(vec3 pos){
@@ -154,17 +154,9 @@ vec3 GetGradient(vec3 pos){
 	return normalize(vec3(x,y,z) / ( 2 * errorValue));
 }
 
-float sdBoxFrame( vec3 p, vec3 b, float e)
-{
-       p = abs(p  )-b;
-  vec3 q = abs(p+e)-e;
-
-  return min(min(
-      length(max(vec3(p.x,q.y,q.z),0.0))+min(max(p.x,max(q.y,q.z)),0.0),
-      length(max(vec3(q.x,p.y,q.z),0.0))+min(max(q.x,max(p.y,q.z)),0.0)),
-      length(max(vec3(q.x,q.y,p.z),0.0))+min(max(q.x,max(q.y,p.z)),0.0));
+int GetIndex(vec3 pos){
+    return int(pos.y) * vertexCount.x * vertexCount.z + int(pos.z) * vertexCount.x + int(pos.x);
 }
-
 
 void main()
 { 
@@ -176,20 +168,17 @@ void main()
 	}
 
 
-	int index = id.y * vertexCount.x * vertexCount.x +  id.z * vertexCount.x + id.x;
+	int index = GetIndex(id);
 
-	//Initalise position vectors
-	float value = f(vec3(id.x,id.y,id.z));
 
-	vec3 difference = ((vertexCount/2f) + vec3(centerOffset,0,centerOffset)) - vec3(id);
-	vec3 Center = (vertexCount/2f);
-
-	if(sdBoxFrame(id, Center, centerOffset) < 0.0001f){
-	value = 1;
-	}else{
+	float value = ((fbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / max(float(id.y),.0001);
+	float caveValue = ((cfbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / max(float(id.y),.0001);
+	
+	
+	if(id.x == 0 || id.x == vertexCount.x - 1 || id.z == 0 || id.z == vertexCount.z - 1 || id.y == 0){
 	value = 0;
 	}
 
-	points[index].value = 2/length(difference);
+	points[index].value = value * caveValue;
 	points[index].gradient = GetGradient(vec3(id));
 }

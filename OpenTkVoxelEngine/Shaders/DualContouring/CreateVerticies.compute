@@ -1,7 +1,7 @@
 #version 460
 
 //Define size of local workgroup
-layout(local_size_x = 512, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 
 
@@ -60,9 +60,8 @@ float InverseLerp(float a, float b, float t) {
 
 
 int CheckSign(float value){
-    if(value > surfaceLevel ) return 1;
-    if(value < surfaceLevel) return -1;
-    return 0;
+    if(value >= surfaceLevel ) return 1;
+    return -1;
 }
 
 vec4 interpolateVerts(vec4 v1, vec4 v2)
@@ -82,9 +81,9 @@ int GetIndex(vec3 pos){
 
 vec3 GetPosition(int index) {
 	
-		float y = int((index % vertexCount.x));
-		float z = int((index / vertexCount.x) % vertexCount.z);
-		float x = int(index / (vertexCount.x * vertexCount.z));
+		float y = int(floor((index % vertexCount.x)));
+		float z = int(floor((index / vertexCount.x) % vertexCount.z));
+		float x = int(floor(index / (vertexCount.x * vertexCount.z)));
 	return vec3(x,y,z);
 }
 
@@ -93,10 +92,12 @@ void main()
 { 
 	ivec3 id = ivec3(gl_GlobalInvocationID.xyz);
 
-
+	if(id.x >= vertexCount.x || id.y >= vertexCount.y ||  id.z >= vertexCount.z){
+		return;
+	}
 
   
-    vec3 k0 = GetPosition(id.x);
+    vec3 k0 = GetPosition(GetIndex(id));
 	vec3 k1 = k0 + vec3(1, 0, 0);
 	vec3 k2 = k0 + vec3(1, 0, 1);
 	vec3 k3 = k0 + vec3(0, 0, 1);
@@ -146,12 +147,8 @@ void main()
 			vec4 Normal1 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 			vec4 Normal2 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
 
-			verticies[appendIndex].Normal = Normal1;
-			verticies[appendIndex + 1].Normal = Normal1;
-			verticies[appendIndex + 2].Normal = Normal1;
-			verticies[appendIndex + 3].Normal = Normal2;
-			verticies[appendIndex + 4].Normal = Normal2;
-			verticies[appendIndex + 5].Normal = Normal2;
+			verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
 
 		}
 		else
@@ -164,15 +161,13 @@ void main()
 			verticies[appendIndex + 4] = value1;
 			verticies[appendIndex + 5] = value0;
 
-			vec4 Normal1 = CalculateNormal(value0.Pos,value3.Pos,value2.Pos);
-			vec4 Normal2 = CalculateNormal(value2.Pos,value1.Pos,value0.Pos);
+			vec4 Normal1 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
+			vec4 Normal2 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 
-			verticies[appendIndex].Normal = Normal1;
-			verticies[appendIndex + 1].Normal = Normal1;
-			verticies[appendIndex + 2].Normal = Normal1;
-			verticies[appendIndex + 3].Normal = Normal2;
-			verticies[appendIndex + 4].Normal = Normal2;
-			verticies[appendIndex + 5].Normal = Normal2;
+			verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+
+
 		}
 	} 
 
@@ -208,12 +203,9 @@ void main()
 			vec4 Normal1 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 			vec4 Normal2 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
 
-			verticies[appendIndex].Normal = Normal1;
-			verticies[appendIndex + 1].Normal = Normal1;
-			verticies[appendIndex + 2].Normal = Normal1;
-			verticies[appendIndex + 3].Normal = Normal2;
-			verticies[appendIndex + 4].Normal = Normal2;
-			verticies[appendIndex + 5].Normal = Normal2;
+			verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+
 		}
 		else
 		{
@@ -225,15 +217,12 @@ void main()
 			verticies[appendIndex + 4] = value1;
 			verticies[appendIndex + 5] = value0;
 
-			vec4 Normal1 = CalculateNormal(value0.Pos,value3.Pos,value2.Pos);
-			vec4 Normal2 = CalculateNormal(value2.Pos,value1.Pos,value0.Pos);
+			vec4 Normal1 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
+			vec4 Normal2 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 
-			verticies[appendIndex].Normal = Normal1;
-			verticies[appendIndex + 1].Normal = Normal1;
-			verticies[appendIndex + 2].Normal = Normal1;
-			verticies[appendIndex + 3].Normal = Normal2;
-			verticies[appendIndex + 4].Normal = Normal2;
-			verticies[appendIndex + 5].Normal = Normal2;
+			//verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			//verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+
 
 		}
 	} 
@@ -264,12 +253,10 @@ void main()
 			vec4 Normal1 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 			vec4 Normal2 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
 
-			verticies[appendIndex].Normal = Normal1;
-			verticies[appendIndex + 1].Normal = Normal1;
-			verticies[appendIndex + 2].Normal = Normal1;
-			verticies[appendIndex + 3].Normal = Normal2;
-			verticies[appendIndex + 4].Normal = Normal2;
-			verticies[appendIndex + 5].Normal = Normal2;
+			//verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			//verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+
+
 		}
 		else
 		{
@@ -281,15 +268,11 @@ void main()
 			verticies[appendIndex + 4] = value1;
 			verticies[appendIndex + 5] = value0;
 
-			vec4 Normal1 = CalculateNormal(value0.Pos,value3.Pos,value2.Pos);
-			vec4 Normal2 = CalculateNormal(value2.Pos,value1.Pos,value0.Pos);
+			vec4 Normal1 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
+			vec4 Normal2 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 
-			verticies[appendIndex].Normal = Normal1;
-			verticies[appendIndex + 1].Normal = Normal1;
-			verticies[appendIndex + 2].Normal = Normal1;
-			verticies[appendIndex + 3].Normal = Normal2;
-			verticies[appendIndex + 4].Normal = Normal2;
-			verticies[appendIndex + 5].Normal = Normal2;
+			//verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			//verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
 		}
 	} 
 
