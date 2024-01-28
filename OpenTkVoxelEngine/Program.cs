@@ -70,16 +70,14 @@ namespace Engine
 
             _scenes = new List<IScene>
             {
-                new CubeScene(this,_controller),
-                new VoxelScene(this, _controller),
                 new HydraulicErosion(this, _controller),
-                new ParralaxRaymarcher(this, _controller),
                 new MarchingCubes(this, _controller),
-                new SurfaceNets(this,_controller)
+                new SurfaceNets(this,_controller),
+                new NoiseVisualization(this,_controller)
             };
 
 
-            ActiveScene = _scenes[5];
+            ActiveScene = _scenes[3];
             ActiveScene.SetActive(true);
         }
 
