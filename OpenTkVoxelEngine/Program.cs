@@ -55,6 +55,18 @@ namespace Engine
         static List<IScene> _scenes;
         static IScene ActiveScene;
 
+        int activeSceneIndex = 0;
+
+        //Enum of all scenes used to dynamically display imgui buttons
+        enum scenes
+        {
+            Erosion,
+            MarchingCubes,
+            SurfaceNets,
+            NosieVisualization,
+            count
+        }
+
         //Called On Startup
         protected override void OnLoad()
         {
@@ -77,7 +89,7 @@ namespace Engine
             };
 
 
-            ActiveScene = _scenes[0];
+            ActiveScene = _scenes[3];
             ActiveScene.SetActive(true);
         }
 
@@ -93,6 +105,42 @@ namespace Engine
         }
 
         bool _cursorLocked = true;
+
+        protected override void OnRenderFrame(FrameEventArgs args)
+        {
+            base.OnRenderFrame(args);
+
+            //Update Imgui Controller
+            _controller.Update(this, (float)args.Time);
+
+
+            //Draws Global Imgui
+            ImGui.BeginMainMenuBar();
+            string sceneName = (ActiveScene.GetType()).ToString();
+            ImGui.SetNextItemWidth(100);
+            ImGui.BeginMenu("Select Scene");
+            for (int i = 0; i < (int)scenes.count; i++)
+            {
+                if (i == activeSceneIndex)
+                {
+                    ImGui.BeginDisabled();
+                }
+                if (ImGui.Button(Enum.GetName((scenes)i)))
+                {
+                    ActiveScene.SetActive(false);
+                    activeSceneIndex = i;
+                    ActiveScene = _scenes[activeSceneIndex];
+                    ActiveScene.SetActive(true);
+                }
+                if (i == activeSceneIndex)
+                {
+                    ImGui.EndDisabled();
+                }
+            }
+            ImGui.EndMenu();
+            ImGui.EndMainMenuBar();
+
+        }
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {

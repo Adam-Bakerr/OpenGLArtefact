@@ -267,6 +267,10 @@ namespace OpenTkVoxelEngine
         }
 
 
+        public override void DrawImgui()
+        {
+        }
+
         public override void OnUnload()
         {
             rayShader?.Dispose();

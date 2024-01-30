@@ -40,18 +40,22 @@ namespace OpenTkVoxelEngine
             _window.MouseWheel -= OnMouseWheel;
         }
 
-        public void SetActive(bool value) { if(value)
-        {
-            AddListeners(); 
-            OnLoad();
-        }else
-        {
-            RemoveListeners();
-            OnUnload();
-        }
+        public void SetActive(bool value) 
+        { 
+            if(value) 
+            {
+                AddListeners(); 
+                if(!initalized) OnLoad();
+                initalized = true;
+            }else
+            {
+                RemoveListeners();
+                OnUnload();
+            }
 
         }
 
+        bool initalized = false;
         protected GameWindow _window;
         protected ImGuiController _controller;
 
@@ -63,6 +67,8 @@ namespace OpenTkVoxelEngine
         {
             GL.Viewport(0, 0, e.Width, e.Height);
         }
+
+        public abstract void DrawImgui();
         public abstract void OnUnload();
         public abstract void OnLoad();
     }

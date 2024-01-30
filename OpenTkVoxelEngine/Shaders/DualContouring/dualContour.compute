@@ -3,14 +3,10 @@
 //Define size of local workgroup
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-struct DFData{
-	vec3 gradient;
-    float value;
-};
 
 layout(std430, binding = 0) buffer point
 {
-    DFData points[];
+    float points[];
 };
 
 
@@ -109,8 +105,8 @@ void main()
         vec3 pos1 = GetPosition(index1);
         vec3 pos2 = GetPosition(index2);
 
-        float density1 = points[index1].value;
-		float density2 = points[index2].value;
+        float density1 = points[index1];
+		float density2 = points[index2];
 
         if (CheckSign(density1) == CheckSign(density2))
 		{

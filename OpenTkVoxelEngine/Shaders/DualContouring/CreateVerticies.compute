@@ -11,16 +11,12 @@ struct vertex{
 	vec4 Normal;
 };
 
-struct DFData{
-	vec3 gradient;
-    float value;
-};
 
 
 //xyz grad w value
 layout(std430, binding = 0) buffer point
 {
-    DFData points[];
+    float points[];
 };
 
 
@@ -37,7 +33,7 @@ layout(std430, binding = 2) buffer Vertex
 layout(binding = 3) uniform atomic_uint counter;
 
 
-uniform vec3 resolution;
+uniform vec4 resolution;
 uniform ivec3 vertexCount;
 uniform float surfaceLevel;
 
@@ -72,7 +68,7 @@ vec4 interpolateVerts(vec4 v1, vec4 v2)
 
 vec4 positionAndValueFromIndex(ivec3 id){
     int index = id.y * vertexCount.x * vertexCount.z + id.z * vertexCount.x + id.x;
-    return vec4(id.x*resolution.x,id.y*resolution.y,id.z*resolution.z,points[index].value);
+    return vec4(id.x*resolution.x,id.y*resolution.y,id.z*resolution.z,points[index]);
 }
 
 int GetIndex(vec3 pos){
@@ -117,15 +113,11 @@ void main()
 	int v1 = GetIndex(k1);
 	int v2 = GetIndex(k2);
 	int v3 = GetIndex(k3);
-	value0.Pos = featurePoints[v0];
-	value1.Pos = featurePoints[v1];
-	value2.Pos = featurePoints[v2];
-	value3.Pos = featurePoints[v3];
+	value0.Pos = featurePoints[v0]*resolution;
+	value1.Pos = featurePoints[v1]*resolution;
+	value2.Pos = featurePoints[v2]*resolution;
+	value3.Pos = featurePoints[v3]*resolution;
 
-	value0.Normal = vec4(points[v0].gradient,1);
-	value1.Normal = vec4(points[v1].gradient,1);
-	value2.Normal = vec4(points[v2].gradient,1);
-	value3.Normal = vec4(points[v3].gradient,1);
 
 	if (value0.Pos.x != 0 && value0.Pos.y != 0 && value0.Pos.z != 0 &&
 		value1.Pos.x != 0 && value1.Pos.y != 0 && value1.Pos.z != 0 &&
@@ -134,7 +126,7 @@ void main()
 
 		int densityIndex = GetIndex(k2);
 
-		if (points[densityIndex].value > surfaceLevel)
+		if (points[densityIndex] > surfaceLevel)
 		{
 			uint appendIndex = atomicCounterAdd(counter,6);
 			verticies[appendIndex] = value0;
@@ -178,10 +170,10 @@ void main()
 
 
 
-	value0.Pos = featurePoints[GetIndex(k0)];
-	value1.Pos = featurePoints[GetIndex(k1)];
-	value2.Pos = featurePoints[GetIndex(k2)];
-	value3.Pos = featurePoints[GetIndex(k3)];
+	value0.Pos = featurePoints[GetIndex(k0)]*resolution;
+	value1.Pos = featurePoints[GetIndex(k1)]*resolution;
+	value2.Pos = featurePoints[GetIndex(k2)]*resolution;
+	value3.Pos = featurePoints[GetIndex(k3)]*resolution;
 
 	if (value0.Pos.x != 0 && value0.Pos.y != 0 && value0.Pos.z != 0 &&
 		value1.Pos.x != 0 && value1.Pos.y != 0 && value1.Pos.z != 0 &&
@@ -190,7 +182,7 @@ void main()
 
 		int densityIndex = GetIndex(k2);
 
-		if (points[densityIndex].value > surfaceLevel)
+		if (points[densityIndex] > surfaceLevel)
 		{
 			uint appendIndex = atomicCounterAdd(counter,6);
 			verticies[appendIndex] = value0;
@@ -220,8 +212,8 @@ void main()
 			vec4 Normal1 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
 			vec4 Normal2 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 
-			//verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
-			//verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+			verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
 
 
 		}
@@ -231,16 +223,16 @@ void main()
 	k2 = k0 + vec3(0, 1, 1);
 	k3 = k0 + vec3(0, 1, 0);
 
-	value0.Pos = featurePoints[GetIndex(k0)];
-	value1.Pos = featurePoints[GetIndex(k1)];
-	value2.Pos = featurePoints[GetIndex(k2)];
-	value3.Pos = featurePoints[GetIndex(k3)];
+	value0.Pos = featurePoints[GetIndex(k0)]*resolution;
+	value1.Pos = featurePoints[GetIndex(k1)]*resolution;
+	value2.Pos = featurePoints[GetIndex(k2)]*resolution;
+	value3.Pos = featurePoints[GetIndex(k3)]*resolution;
 
 	if (value0.Pos.xyz != vec3(0) && value1.Pos.xyz != vec3(0) && value2.Pos.xyz != vec3(0) && value3.Pos.xyz != vec3(0)){
 
 		int densityIndex = GetIndex(k2);
 
-		if (points[densityIndex].value > surfaceLevel)
+		if (points[densityIndex] > surfaceLevel)
 		{
 			uint appendIndex = atomicCounterAdd(counter,6);
 			verticies[appendIndex] = value0;
@@ -253,8 +245,8 @@ void main()
 			vec4 Normal1 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 			vec4 Normal2 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
 
-			//verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
-			//verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+			verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
 
 
 		}
@@ -271,8 +263,8 @@ void main()
 			vec4 Normal1 = CalculateNormal(value2.Pos,value3.Pos,value0.Pos);
 			vec4 Normal2 = CalculateNormal(value0.Pos,value1.Pos,value2.Pos);
 
-			//verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
-			//verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
+			verticies[appendIndex].Normal = verticies[appendIndex + 1].Normal = verticies[appendIndex + 2].Normal = Normal1;
+			verticies[appendIndex + 3].Normal = verticies[appendIndex + 4].Normal = verticies[appendIndex + 5].Normal = Normal2;
 		}
 	} 
 

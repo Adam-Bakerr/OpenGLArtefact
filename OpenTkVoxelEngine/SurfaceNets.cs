@@ -30,7 +30,7 @@ namespace OpenTkVoxelEngine
         //Shaders
         Shader _shader;
         ComputeShader _dfShader;
-        ComputeShader _featurePointsShader;
+        ComputeShader _intersectionLocatorShader;
         ComputeShader _createVertexShader;
 
         //Shader Paths
@@ -49,13 +49,14 @@ namespace OpenTkVoxelEngine
         int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        Vector3i _dimensions = new Vector3i(64, 64, 64);
+        Vector3i _dimensions = new Vector3i(128, 128, 128);
         Vector3 _resolution = new Vector3(.1f);
         int _workGroupSize = 8;
         float _surfaceLevel = .5f;
         float _grassBlendAmount = .875f;
         float _grassSlopeThreshold = .15f;
         float _dualContourErrorValue = .1f;
+        bool _drawTestSpheres;
 
         uint vertexCounterValue;
 
@@ -164,7 +165,7 @@ namespace OpenTkVoxelEngine
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _fpbo);
 
 
-            _featurePointsShader.use();
+            _intersectionLocatorShader.use();
 
             int fpx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X), 1) / _workGroupSize));
             int fpy = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y),1) / _workGroupSize));
@@ -222,8 +223,8 @@ namespace OpenTkVoxelEngine
             UpdateDFShader();
 
             //Create the marching cubes shaders
-            _featurePointsShader = new ComputeShader(_assemblyPath, _marchCubesShaderPath);
-            UpdateMarchCubesShader();
+            _intersectionLocatorShader = new ComputeShader(_assemblyPath, _marchCubesShaderPath);
+            UpdateIntersectionLocatorShader();
 
             //create the vertexCreationShader
             _createVertexShader = new ComputeShader(_assemblyPath, _createVertexPath);
@@ -241,7 +242,7 @@ namespace OpenTkVoxelEngine
         public void UpdateVertexCreationShader()
         {
             _createVertexShader.use();
-            _createVertexShader.SetVec3("resolution", _resolution);
+            _createVertexShader.SetVec4("resolution", new Vector4(_resolution,1));
             _createVertexShader.SetIVec3("vertexCount", _dimensions);
             _createVertexShader.SetFloat("surfaceLevel", _surfaceLevel);
         }
@@ -251,6 +252,8 @@ namespace OpenTkVoxelEngine
             _dfShader.use();
             _dfShader.SetVec3("resolution", _resolution);
             _dfShader.SetIVec3("vertexCount", _dimensions);
+            _dfShader.SetFloat("totalTime", _totalTime);
+            _dfShader.SetBool("testSpheres", _drawTestSpheres);
             _dfShader.SetInt("baseHeightmap.seed", _heightMapNoiseVariables.seed);
             _dfShader.SetInt("baseHeightmap.NumLayers", _heightMapNoiseVariables.NumLayers);
             _dfShader.SetVec3("baseHeightmap.centre", _heightMapNoiseVariables.centre);
@@ -278,15 +281,15 @@ namespace OpenTkVoxelEngine
             _dfShader.SetFloat("errorValue", _dualContourErrorValue);
         }
 
-        public void UpdateMarchCubesShader()
+        public void UpdateIntersectionLocatorShader()
         {
-            _featurePointsShader.use();
-            _featurePointsShader.SetVec3("resolution", _resolution);
-            _featurePointsShader.SetIVec3("vertexCount", _dimensions);
-            _featurePointsShader.SetFloat("surfaceLevel",_surfaceLevel);
+            _intersectionLocatorShader.use();
+            _intersectionLocatorShader.SetVec3("resolution", _resolution);
+            _intersectionLocatorShader.SetIVec3("vertexCount", _dimensions);
+            _intersectionLocatorShader.SetFloat("surfaceLevel",_surfaceLevel);
 
-            _featurePointsShader.SetFloat("_GrassSlopeThreshold", _grassSlopeThreshold);
-            _featurePointsShader.SetFloat("_GrassBlendAmount", _grassBlendAmount);
+            _intersectionLocatorShader.SetFloat("_GrassSlopeThreshold", _grassSlopeThreshold);
+            _intersectionLocatorShader.SetFloat("_GrassBlendAmount", _grassBlendAmount);
         }
 
         public override void OnUpdateFrame(FrameEventArgs args)
@@ -300,12 +303,9 @@ namespace OpenTkVoxelEngine
         float _totalTime = 0;
         public override void OnRenderFrame(FrameEventArgs args)
         {
-            if (_window.IsKeyDown(Keys.P))_heightMapNoiseVariables.centre.X += (float)args.Time;
-            centerOffset = MathF.Sin(_totalTime) * 4;
+            _totalTime += (float)args.Time;
             OnDFUpdate();
 
-            //Update Imgui Controller
-            _controller.Update(_window, (float)args.Time);
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -376,11 +376,11 @@ namespace OpenTkVoxelEngine
         public void OnDFUpdate()
         {
             UpdateDFShader();
-            UpdateMarchCubesShader();
+            UpdateIntersectionLocatorShader();
             RunShaders();
         }
 
-        public void DrawImgui()
+        public override void DrawImgui()
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
             ImGui.Begin("Marching Cubes Noise Variables");
@@ -411,6 +411,7 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("IsoLevel", ref _surfaceLevel, .025f, 0, 1)) OnDFUpdate();
             if (ImGui.DragFloat("Grass Slope Threshold", ref _grassSlopeThreshold, .025f, 0, 1))OnDFUpdate();
             if(ImGui.DragFloat("Grass Blend Amount", ref _grassBlendAmount, .025f, 0, 1))OnDFUpdate();
+            ImGui.Checkbox("Debug Test Spheres", ref _drawTestSpheres);
             ImGui.End();
 
             _controller.Render();

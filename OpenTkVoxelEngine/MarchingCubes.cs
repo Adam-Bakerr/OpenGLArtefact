@@ -45,12 +45,14 @@ namespace OpenTkVoxelEngine
         int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        Vector3i _dimensions = new Vector3i(200, 128, 200);
+        Vector3i _dimensions = new Vector3i(128, 128, 128);
         Vector3 _resolution = new Vector3(.1f);
         int _workGroupSize = 8;
         float _surfaceLevel = .5f;
         float _grassBlendAmount = .875f;
         float _grassSlopeThreshold = .15f;
+        float _totalTime = 0f;
+        bool _drawTestSpheres;
 
         uint vertexCounterValue;
 
@@ -231,6 +233,8 @@ namespace OpenTkVoxelEngine
             _dfShader.use();
             _dfShader.SetVec3("resolution", _resolution);
             _dfShader.SetIVec3("vertexCount", _dimensions);
+            _dfShader.SetFloat("totalTime", _totalTime);
+            _dfShader.SetBool("testSpheres", _drawTestSpheres);
             _dfShader.SetInt("baseHeightmap.seed", _heightMapNoiseVariables.seed);
             _dfShader.SetInt("baseHeightmap.NumLayers", _heightMapNoiseVariables.NumLayers);
             _dfShader.SetVec3("baseHeightmap.centre", _heightMapNoiseVariables.centre);
@@ -274,10 +278,9 @@ namespace OpenTkVoxelEngine
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
-      
+            _totalTime += (float)args.Time;
 
-            //Update Imgui Controller
-            _controller.Update(_window, (float)args.Time);
+            OnDFUpdate();
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -346,10 +349,20 @@ namespace OpenTkVoxelEngine
             RunShaders();
         }
 
-        public void DrawImgui()
+        public override void DrawImgui()
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
-            ImGui.Begin("Marching Cubes Noise Variables");
+
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(0, 25));
+            ImGui.Begin("Debug Menu", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration);
+            ImGui.Text("Vertex Count: " + vertexCounterValue.ToString());
+            ImGui.Checkbox("Debug Test Spheres", ref _drawTestSpheres);
+            ImGui.End();
+
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(0, 70));
+            ImGui.SetNextWindowSize(new System.Numerics.Vector2(900, _window.ClientSize.Y));
+            ImGui.SetNextItemWidth(900);
+            ImGui.Begin("Marching Cubes Noise Variables", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground);
             ImGui.Text("Height Map");
             if (ImGui.DragInt("HeightMap seed", ref _heightMapNoiseVariables.seed, 1)) OnDFUpdate();
             if (ImGui.DragInt("HeightMap numLayers", ref _heightMapNoiseVariables.NumLayers, 1, 0, 8)) OnDFUpdate();

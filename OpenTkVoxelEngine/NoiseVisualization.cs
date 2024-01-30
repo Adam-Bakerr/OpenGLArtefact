@@ -86,6 +86,10 @@ namespace OpenTkVoxelEngine
             _camera.OnMouseWheel(e);
         }
 
+        public override void DrawImgui()
+        {
+        }
+
         public override void OnUnload()
         {
         }

@@ -12,12 +12,31 @@ using Dear_ImGui_Sample;
 using Engine;
 using ImGuiNET;
 using OpenTK.Compute.OpenCL;
+using OpenTK.Graphics.ES20;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using static System.Net.Mime.MediaTypeNames;
+using BufferTarget = OpenTK.Graphics.OpenGL4.BufferTarget;
+using BufferUsageHint = OpenTK.Graphics.OpenGL4.BufferUsageHint;
+using ClearBufferMask = OpenTK.Graphics.OpenGL4.ClearBufferMask;
+using DrawElementsType = OpenTK.Graphics.OpenGL4.DrawElementsType;
+using EnableCap = OpenTK.Graphics.OpenGL4.EnableCap;
+using GL = OpenTK.Graphics.OpenGL4.GL;
+using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
+using PixelInternalFormat = OpenTK.Graphics.OpenGL4.PixelInternalFormat;
+using PixelType = OpenTK.Graphics.OpenGL4.PixelType;
+using PrimitiveType = OpenTK.Graphics.OpenGL4.PrimitiveType;
+using SizedInternalFormat = OpenTK.Graphics.OpenGL4.SizedInternalFormat;
+using TextureMagFilter = OpenTK.Graphics.OpenGL4.TextureMagFilter;
+using TextureMinFilter = OpenTK.Graphics.OpenGL4.TextureMinFilter;
+using TextureParameterName = OpenTK.Graphics.OpenGL4.TextureParameterName;
+using TextureTarget = OpenTK.Graphics.OpenGL4.TextureTarget;
+using TextureUnit = OpenTK.Graphics.OpenGL4.TextureUnit;
+using TextureWrapMode = OpenTK.Graphics.OpenGL4.TextureWrapMode;
+using VertexAttribPointerType = OpenTK.Graphics.OpenGL4.VertexAttribPointerType;
 
 namespace OpenTkVoxelEngine
 {
@@ -158,8 +177,6 @@ namespace OpenTkVoxelEngine
             //Time The Amount of time all computes take to run
             float startTime = DateTime.Now.Microsecond;
 
-            //Update Imgui Controller
-            _controller.Update(_window, (float)args.Time);
 
             //Tell openGL to clear the color buffer and depth buffer
             GL.ClearColor(Color.Black);
@@ -686,67 +703,63 @@ namespace OpenTkVoxelEngine
         /// <summary>
         /// Draw the IMGui gui for the specific scene
         /// </summary>
-        public void DrawImgui()
+        public override void DrawImgui()
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
 
-            //Show Heightmap Noise Window
-            ImGui.Begin("Debug Menu");
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(0,25));
+            ImGui.Begin("Debug Menu",ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration);
             ImGui.Text("Vertex Count: "+VertexCount().ToString());
             ImGui.Text("GPU Frame Time In Micro-Seconds:" + RenderTime);
             ImGui.End();
 
-            
-            ImGui.Begin("Terrain Simulation Settings",ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoResize);
 
-            if (ImGui.Button("Reload Shader")) shaderInit = false;
-            if (ImGui.BeginCombo("Height Map Settings","Height Map Settings" ))
-            {
-                if (ImGui.DragInt("HeightMap seed", ref _noiseVariables.seed, 1)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragInt("HeightMap numLayers", ref _noiseVariables.NumLayers, 1, 0, 8)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap baseRoughness", ref _noiseVariables.baseRoughness, .005f, 0)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap Roughness", ref _noiseVariables.roughness, .005f, 0)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap persistence", ref _noiseVariables.persistence, .01f, 0)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap minValue", ref _noiseVariables.minValue)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap strength", ref _noiseVariables.strength, 0.005f, 0.0001f)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap scale", ref _noiseVariables.scale, .005f, 0.0001f)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap minHeight", ref _noiseVariables.minHeight)) UpdateHeightmapNoiseVariables();
-                if (ImGui.DragFloat("HeightMap maxHeight", ref _noiseVariables.maxHeight)) UpdateHeightmapNoiseVariables();
-            }
-            ImGui.EndCombo();
-            ImGui.Spacing();
-            if (ImGui.BeginCombo("Falloff Map Settings", "Falloff Map Settings"))
-            {
-                if (ImGui.DragInt("FallOff seed", ref _falloffNoiseVariables.seed, 1)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragInt("FallOff numLayers", ref _falloffNoiseVariables.NumLayers, 1, 0, 8)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff baseRoughness", ref _falloffNoiseVariables.baseRoughness, .005f, 0)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff Roughness", ref _falloffNoiseVariables.roughness, .005f, 0)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff persistence", ref _falloffNoiseVariables.persistence, .01f, 0)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff minValue", ref _falloffNoiseVariables.minValue)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff strength", ref _falloffNoiseVariables.strength, 0.005f, 0.0001f)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff scale", ref _falloffNoiseVariables.scale, .005f, 0.0001f)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff minHeight", ref _falloffNoiseVariables.minHeight)) UpdateFallOffmapNoiseVariables();
-                if (ImGui.DragFloat("FallOff maxHeight", ref _falloffNoiseVariables.maxHeight)) UpdateFallOffmapNoiseVariables();
-            }
-            ImGui.EndCombo();
-            ImGui.Spacing();
-            if (ImGui.BeginCombo("Humitidy Map Configuration", "Humitidy Map Configuration")){
-                if (ImGui.DragInt("seed", ref _humitidyNoiseVariables.seed, 1)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragInt("numLayers", ref _humitidyNoiseVariables.NumLayers, 1, 0, 8)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("baseRoughness", ref _humitidyNoiseVariables.baseRoughness, .005f, 0)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("Roughness", ref _humitidyNoiseVariables.roughness, .005f, 0)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("persistence", ref _humitidyNoiseVariables.persistence, .01f, 0)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("minValue", ref _humitidyNoiseVariables.minValue)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("strength", ref _humitidyNoiseVariables.strength, 0.005f, 0.0001f)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("scale", ref _humitidyNoiseVariables.scale, .005f, 0.0001f)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("minHeight", ref _humitidyNoiseVariables.minHeight)) UpdateHumidityNoiseVariables();
-                if (ImGui.DragFloat("maxHeight", ref _humitidyNoiseVariables.maxHeight)) UpdateHumidityNoiseVariables();
-            }
-            ImGui.EndCombo();
 
-            ImGui.End();
-            ImGui.Begin("Erosion Settings");
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(0,70));
+            ImGui.SetNextWindowSize(new System.Numerics.Vector2(900,_window.ClientSize.Y));
+            ImGui.SetNextItemWidth(900);
+            ImGui.Begin("Settings", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |  ImGuiWindowFlags.NoBackground );
+            ImGui.Text("Height Map Settings");
+            ImGui.SetWindowFontScale(.95f);
+            if (ImGui.DragInt("HeightMap seed", ref _noiseVariables.seed, 1)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragInt("HeightMap numLayers", ref _noiseVariables.NumLayers, 1, 0, 8)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap baseRoughness", ref _noiseVariables.baseRoughness, .005f, 0)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap Roughness", ref _noiseVariables.roughness, .005f, 0)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap persistence", ref _noiseVariables.persistence, .01f, 0)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap minValue", ref _noiseVariables.minValue)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap strength", ref _noiseVariables.strength, 0.005f, 0.0001f)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap scale", ref _noiseVariables.scale, .005f, 0.0001f)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap minHeight", ref _noiseVariables.minHeight)) UpdateHeightmapNoiseVariables();
+            if (ImGui.DragFloat("HeightMap maxHeight", ref _noiseVariables.maxHeight)) UpdateHeightmapNoiseVariables();
+            ImGui.Spacing();
+            ImGui.Text("FallOff Map Settings");
+            if (ImGui.DragInt("FallOff seed", ref _falloffNoiseVariables.seed, 1)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragInt("FallOff numLayers", ref _falloffNoiseVariables.NumLayers, 1, 0, 8)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff baseRoughness", ref _falloffNoiseVariables.baseRoughness, .005f, 0)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff Roughness", ref _falloffNoiseVariables.roughness, .005f, 0)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff persistence", ref _falloffNoiseVariables.persistence, .01f, 0)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff minValue", ref _falloffNoiseVariables.minValue)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff strength", ref _falloffNoiseVariables.strength, 0.005f, 0.0001f)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff scale", ref _falloffNoiseVariables.scale, .005f, 0.0001f)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff minHeight", ref _falloffNoiseVariables.minHeight)) UpdateFallOffmapNoiseVariables();
+            if (ImGui.DragFloat("FallOff maxHeight", ref _falloffNoiseVariables.maxHeight)) UpdateFallOffmapNoiseVariables();
+            ImGui.Spacing();
+            ImGui.Text("Humidity Map Settings");
+            if (ImGui.DragInt("seed", ref _humitidyNoiseVariables.seed, 1)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragInt("numLayers", ref _humitidyNoiseVariables.NumLayers, 1, 0, 8)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("baseRoughness", ref _humitidyNoiseVariables.baseRoughness, .005f, 0)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("Roughness", ref _humitidyNoiseVariables.roughness, .005f, 0)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("persistence", ref _humitidyNoiseVariables.persistence, .01f, 0)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("minValue", ref _humitidyNoiseVariables.minValue)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("strength", ref _humitidyNoiseVariables.strength, 0.005f, 0.0001f)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("scale", ref _humitidyNoiseVariables.scale, .005f, 0.0001f)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("minHeight", ref _humitidyNoiseVariables.minHeight)) UpdateHumidityNoiseVariables();
+            if (ImGui.DragFloat("maxHeight", ref _humitidyNoiseVariables.maxHeight)) UpdateHumidityNoiseVariables();
+            ImGui.Spacing();
+            ImGui.Text("Erosion Settings");
             ImGui.Checkbox("Toggle Erosion Simulation", ref _shouldErode);
+            ImGui.SameLine();
+            if (ImGui.Button("Post Erosion Pass")) PostErosionPass();
             if (ImGui.DragInt("particle count", ref particleCount, 100)) UpdateErosionShader();
             if (ImGui.DragInt("Max Lifetime", ref maxLifetime, 1)) UpdateErosionShader();
             if (ImGui.DragFloat("inertia", ref inertia, 0.01f)) UpdateErosionShader();
@@ -759,12 +772,8 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("startSpeed", ref startSpeed, 0.01f)) UpdateErosionShader();
             if (ImGui.DragFloat("startWater", ref startWater, 0.01f)) UpdateErosionShader();
 
-            if(ImGui.Button("Post Erosion Pass")) PostErosionPass();
-
             ImGui.End();
-
             _controller.Render();
-
         }
 
         /// <summary>
