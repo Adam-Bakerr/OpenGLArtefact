@@ -22,6 +22,8 @@ namespace OpenTkVoxelEngine
 {
     internal class NoiseVisualization : IScene
     {
+        Camera _camera;
+
         VAO _vao;
         int _vbo;
 
@@ -61,6 +63,7 @@ namespace OpenTkVoxelEngine
 
         public override void OnUpdateFrame(FrameEventArgs args)
         {
+            _camera.OnUpdateFrame(args);
         }
 
         public override void OnRenderFrame(FrameEventArgs args)
@@ -69,13 +72,18 @@ namespace OpenTkVoxelEngine
 
             _shader.Use();
             _shader.SetFloat("time",_time);
-
+            _shader.SetVec2("dimensions",_window.ClientSize);
+            _shader.SetVec3("iro",_camera.Position());
+            _shader.SetVec3("cameraForward", _camera.Forward());
+            _shader.SetVec3("cameraUp", _camera.Up());
+            _shader.SetVec3("cameraRight", _camera.Right());
             GL.DrawArrays(PrimitiveType.Triangles,0,6);
             _window.SwapBuffers();
         }
 
         public override void OnMouseWheel(MouseWheelEventArgs e)
         {
+            _camera.OnMouseWheel(e);
         }
 
         public override void OnUnload()
@@ -84,6 +92,7 @@ namespace OpenTkVoxelEngine
 
         public override void OnLoad()
         {
+            _camera = new Camera(_window, 0.1f, 100);
             CreateScreenShader();
             CreateBuffers();
         }

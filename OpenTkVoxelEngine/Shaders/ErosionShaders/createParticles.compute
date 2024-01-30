@@ -11,6 +11,7 @@ uniform int sqrtParticleCount;
 uniform ivec2 vertexCount;
 uniform float totalTime;
 uniform int borderSize;
+uniform float randomHashOffset;
 
 layout(std430, binding = 0) buffer Particle
 {
@@ -51,8 +52,8 @@ void main()
 	int index = id.y * (sqrtParticleCount) + id.x;
 
 	//Pseudo Random Particle Position
-	float x = clamp(noise(vec3(id.x,id.y,totalTime)) * vertexCount.x,borderSize,vertexCount.x - borderSize);
-	float y = clamp(noise(vec3(id.y,id.x,totalTime)) * vertexCount.y,borderSize,vertexCount.y - borderSize);
+	float x = clamp(noise(vec3(id.x,id.y,randomHashOffset + totalTime)) * vertexCount.x,borderSize,vertexCount.x - borderSize);
+	float y = clamp(noise(vec3(id.y,id.x,randomHashOffset * totalTime)) * vertexCount.y,borderSize,vertexCount.y - borderSize);
 
 	Particles[index] = vec2(x,y);
 	

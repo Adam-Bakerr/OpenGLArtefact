@@ -2,7 +2,7 @@
 
 
 //Define size of local workgroup
-layout(local_size_x = 1024 ) in;
+layout(local_size_x = 1024) in;
 
 struct vertex{
 	vec4 Pos;
@@ -57,62 +57,34 @@ layout(std430, binding = 4) buffer vertexBuffer
     vertex verticies[];
 };
 
-vec4 CalculateNormal(int index){
-	vec3 normal = vec3(0);
 
-	vec3 p1 = verticies[index].Pos.xyz;
-	vec3 p2 = verticies[index + 1].Pos.xyz;
-	vec3 p3 = verticies[index + vertexCount.x].Pos.xyz;
-
-	vec3 e1 = p2 - p1;
-	vec3 e2 = p3 - p1;
-	
-	normal = cross(e1,e2);
-
-	normal = normalize(-normal);
-
-    return vec4(normal,1);
-
-}
-
-
-// Returns vec3(gradientX, gradientY, height)
+// Returns xGradient yGradient Height
 vec3 CalculateHeightAndGradient (float posx, float posy) {
+    //Get x&y coord from current cell
     int coordX = int(floor(posx));
     int coordY = int(floor(posy));
 
-    // Calculate droplet's offset inside the cell (0,0) = at NW node, (1,1) = at SE node
+    //Calculate the dropless position from within the cell, to get the offset for bi interpolation
     float x = posx - coordX;
     float y = posy - coordY;
 
     // Calculate heights of the four nodes of the droplet's cell
-    int nodeIndexNW = coordY * vertexCount.x + coordX;
-    float heightNW = map[nodeIndexNW];
-    float heightNE = map[nodeIndexNW + 1];
-    float heightSW = map[nodeIndexNW + vertexCount.x];
-    float heightSE = map[nodeIndexNW + vertexCount.x + 1];
+    int flooredNodeIndex = coordY * vertexCount.x + coordX;
+
+    //Get the height values of the 4 nodes of this "quadrent"
+    float heightNW = map[flooredNodeIndex];
+    float heightNE = map[flooredNodeIndex + 1];
+    float heightSW = map[flooredNodeIndex + vertexCount.x];
+    float heightSE = map[flooredNodeIndex + vertexCount.x + 1];
 
     // Calculate droplet's direction of flow with bilinear interpolation of height difference along the edges
-    float gradientX = (heightNE - heightNW) * (1 - y) + (heightSE - heightSW) * y;
-    float gradientY = (heightSW - heightNW) * (1 - x) + (heightSE - heightNE) * x;
+    float X = (heightNE - heightNW) * (1 - y) + (heightSE - heightSW) * y;
+    float Y = (heightSW - heightNW) * (1 - x) + (heightSE - heightNE) * x;
 
     // Calculate height with bilinear interpolation of the heights of the nodes of the cell
     float height = heightNW * (1 - x) * (1 - y) + heightNE * x * (1 - y) + heightSW * (1 - x) * y + heightSE * x * y;
 
-    return vec3(gradientX,gradientY,height);
-}
-
-
-void Erode(int x, int y)
-{
-    int cellIndex = (y * vertexCount.x + x);
-    map[cellIndex] -= .01;
-}
-
-void Deposit(int x, int y)
-{
-    int newindex = (y * vertexCount.x + x);
-    map[newindex] += .01;
+    return vec3(X,Y,height);
 }
 
 void main()
@@ -129,7 +101,6 @@ void main()
     vec3 initialHeightAndGradient = CalculateHeightAndGradient (posX, posY);
 
     vec2 dir = vec2(0);
-   
     float speed = startSpeed;
     float water = startWater;
     float sediment = 0;
@@ -138,21 +109,25 @@ void main()
         int nodeX = int(floor(posX));
         int nodeY = int(floor(posY));
         int dropletIndex = nodeY * vertexCount.x + nodeX;
-        // Calculate droplet's offset inside the cell (0,0) = at NW node, (1,1) = at SE node
+
+        // Calculate droplet's offset inside the cell
         float cellOffsetX = posX - nodeX;
         float cellOffsetY = posY - nodeY;
 
-        // Calculate droplet's height and direction of flow with bilinear interpolation of surrounding heights
+        // Calculate droplet's height and direction of flow with interpolation of in respect to the neighbouring heights
         vec3 heightAndGradient = CalculateHeightAndGradient (posX, posY);
 
-        // Update the droplet's direction and position (move position 1 unit regardless of speed)
+        // we update the droplets positon based of its current speed
         dir.x = (dir.x * inertia - heightAndGradient.x * (1 - inertia));
         dir.y = (dir.y * inertia - heightAndGradient.y * (1 - inertia));
-        
         dir = normalize(dir);
+
+        //Move the droplet
         posX += dir.x;
         posY += dir.y;
 
+
+        //break condition if we are too close to the edge of the map of if we are not moving anymore
         if ((dir.x == 0 && dir.y == 0) || posX < borderSize || posX > vertexCount.x - borderSize || posY < borderSize || posY > vertexCount.x - borderSize) {
             map[dropletIndex] += sediment * (1 - cellOffsetX) * (1 - cellOffsetY);
             map[dropletIndex + 1] += sediment * cellOffsetX * (1 - cellOffsetY);
@@ -161,24 +136,28 @@ void main()
             break;
         }
 
+
+        //Get the height after travel and compare to the previous height to calculate the possible sediment we can take
         float newHeight = CalculateHeightAndGradient (posX, posY).z;
         float deltaHeight = newHeight - heightAndGradient.z;
 
+        //Calculate the current capacity of the droplet (not the current sediment held)
         float sedimentCapacity = max(-deltaHeight * speed * water * sedimentCapacityFactor, minSedimentCapacity);
         
+        //We check if we are moving up hill or if we have too much sediment in the droplet
          if (sediment > sedimentCapacity || deltaHeight > 0) {
             float amountToDeposit = (deltaHeight > 0) ? min(deltaHeight, sediment) : (sediment - sedimentCapacity) * depositSpeed;
             sediment -= amountToDeposit;
 
-
+            //Deposit some of the sediment ensuring we never deposit more ore less than the droplet has, interoprlating it across the 4 positons of the current quadrent
             map[dropletIndex] += clamp(amountToDeposit * (1 - cellOffsetX) * (1 - cellOffsetY),0,1);
             map[dropletIndex + 1] += clamp(amountToDeposit * cellOffsetX * (1 - cellOffsetY),0,1);
             map[dropletIndex + vertexCount.x] += clamp(amountToDeposit * (1 - cellOffsetX) * cellOffsetY,0,1);
             map[dropletIndex + vertexCount.x + 1] += clamp(amountToDeposit * cellOffsetX * cellOffsetY,0,1);
         }
         else {
-            // Erode a fraction of the droplet's current carry capacity.
-            // Clamp the erosion to the change in height so that it doesn't dig a hole in the terrain behind the droplet
+            //We erode some of the sediment that the drop has off a given radius of terrain
+            //and use a terrain brush to effect multiple heights at once, to accuratly represent a drop of water on a larger scale instead of per point
             float amountToErode = min ((sedimentCapacity - sediment) * erodeSpeed, -deltaHeight);
             
             for (int i = 0; i < brushLength; i ++) {
@@ -191,7 +170,7 @@ void main()
             }
         }
 
-        // Update droplet's speed and water content
+        //Update the speed and voulme of our current droplet
         speed = sqrt (max(0,speed * speed + deltaHeight * gravity));
         water *= (1 - evaporateSpeed);
     }

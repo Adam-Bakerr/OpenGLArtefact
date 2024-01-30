@@ -77,7 +77,7 @@ namespace Engine
             };
 
 
-            ActiveScene = _scenes[3];
+            ActiveScene = _scenes[0];
             ActiveScene.SetActive(true);
         }
 
