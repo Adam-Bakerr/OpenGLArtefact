@@ -35,6 +35,7 @@ namespace OpenTkVoxelEngine
         public float FOV() => _FOV;
 
         float _maxFOV = 45.0f;
+        float _maxSpeed = 50000.0f;
         float _nearPlane = .1f;
         float _farPlane = 100f;
         float _speed = 12f;
@@ -63,6 +64,28 @@ namespace OpenTkVoxelEngine
             _nearPlane = nearPlane;
             _farPlane = farPlane;
 
+
+            //Create default matrix
+            _model = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(-55.0f));
+            _view = Matrix4.CreateTranslation(0.0f, 0.0f, -3.0f);
+            _projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(_FOV), (float)_window.Size.X / (float)_window.Size.Y, _nearPlane, _farPlane);
+
+
+            //Lock the cusror
+            _window.CursorState = CursorState.Grabbed;
+
+
+            _window.MouseWheel += OnMouseWheel;
+
+        }
+
+        public Camera(GameWindow window, float nearPlane, float farPlane, Vector3 position)
+        {
+            _window = window;
+            _nearPlane = nearPlane;
+            _farPlane = farPlane;
+            _position = position;
+            
 
             //Create default matrix
             _model = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(-55.0f));
@@ -190,7 +213,7 @@ namespace OpenTkVoxelEngine
         //Handles the zooming
         public void OnMouseWheel(MouseWheelEventArgs e)
         {
-            _FOV = Math.Clamp(_FOV - e.OffsetY,1,_maxFOV);
+            _speed = Math.Clamp(_speed + e.OffsetY,1,_maxSpeed);
             
 
             _projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(_FOV), (float)_window.Size.X / (float)_window.Size.Y, _nearPlane, _farPlane);

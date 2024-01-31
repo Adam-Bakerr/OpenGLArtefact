@@ -34,7 +34,7 @@ namespace OpenTkVoxelEngine
         ComputeShader _createVertexShader;
 
         //Shader Paths
-        string _assemblyPath = "OpenTkVoxelEngine.Shaders.DualContouring";
+        string _assemblyPath = "OpenTkVoxelEngine.Shaders.SurfaceNets";
         string _vertexPath = "shader.vert";
         string _fragmentPath = "shader.frag";
         string _distanceFieldGenerationPath = "createDF.compute";
@@ -340,15 +340,13 @@ namespace OpenTkVoxelEngine
         {
         }
 
-        Random testRandom;
-        Octree test;
+
+
         public override void OnLoad()
         {
 
-            test = new Octree(new Bounds(Vector3.Zero, _dimensions),2);
-
-            testRandom = new Random();
             var watch = System.Diagnostics.Stopwatch.StartNew();
+
             //Change the clear color
             GL.ClearColor(Color.Black);
 

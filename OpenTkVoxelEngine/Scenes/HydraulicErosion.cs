@@ -282,6 +282,11 @@ namespace OpenTkVoxelEngine
         /// </summary>
         void CreateBuffers()
         {
+            if (_ssbo != 0) GL.DeleteBuffer(_ssbo);
+            if (_hmbo != 0) GL.DeleteBuffer(_hmbo);
+            if(_vao != null)if (_vao._objectHandle != 0) _vao.Dispose();
+            if(_ebo != 0) GL.DeleteBuffer(_ebo);
+
             //Vertex Buffer
             _ssbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer,_ssbo);
@@ -700,6 +705,8 @@ namespace OpenTkVoxelEngine
 
 
 
+
+
         /// <summary>
         /// Draw the IMGui gui for the specific scene
         /// </summary>
@@ -711,6 +718,8 @@ namespace OpenTkVoxelEngine
             ImGui.Begin("Debug Menu",ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration);
             ImGui.Text("Vertex Count: "+VertexCount().ToString());
             ImGui.Text("GPU Frame Time In Micro-Seconds:" + RenderTime);
+
+
             ImGui.End();
 
 

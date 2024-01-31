@@ -59,37 +59,21 @@ namespace OpenTkVoxelEngine
         //noise variables
         HydraulicErosion.FBMNoiseVariables _heightMapNoiseVariables;
         HydraulicErosion.FBMNoiseVariables _caveMapNoiseVariables;
-        struct vertex
-        {
-            public Vector4 aPosition;
-            public Vector4 aColor;
-            public Vector4 aNormal;
 
-            public vertex(Vector4 pos, Vector4 color, Vector4 normal)
-            {
-                aPosition = pos; aColor = color; aNormal = normal;
-            }
-
-            
-        }
-
-        public int TriangleSize() => VertexSize() * 3;
         public int VertexSize() => (sizeof(float) * 12);
         public int VertexCount() => _dimensions.X * _dimensions.Y * _dimensions.Z;
         public int MaxVertexCount() => (((_dimensions.X-1) * (_dimensions.Y-1) * (_dimensions.Z - 1)) * 20);
 
-        vertex[] _verts = new vertex[]
-        {
-            new vertex(new Vector4(-0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-            new vertex(new Vector4(0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-            new vertex(new Vector4(0.5f, 0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-        };
+
 
         public MarchingCubes(GameWindow window, ImGuiController controller) : base(window, controller)
         {
 
         }
 
+        /// <summary>
+        /// Creates all buffers
+        /// </summary>
         public void CreateBuffers()
         {
             int numPoints = _dimensions.X * _dimensions.Y * _dimensions.Z;
@@ -142,6 +126,9 @@ namespace OpenTkVoxelEngine
 
         }
 
+        /// <summary>
+        /// Used to reset the vertex counter
+        /// </summary>
         public void ResetAtomicCounter()
         {
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, _vcbo);
@@ -149,6 +136,10 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
         }
 
+
+        /// <summary>
+        /// Runs The Shaders
+        /// </summary>
         public void RunShaders()
         {
             ResetAtomicCounter();
@@ -201,6 +192,9 @@ namespace OpenTkVoxelEngine
 
         }
 
+        /// <summary>
+        /// create all shaders 
+        /// </summary>
         public void CreateShaders()
         {
             //Create the shader used to draw verts to the screen
@@ -221,13 +215,18 @@ namespace OpenTkVoxelEngine
 
         }
 
+        /// <summary>
+        /// update the screen shader
+        /// </summary>
         public void UpdateDrawingShader()
         {
             _shader.Use();
             _shader.SetIVec3("_dimensions",_dimensions);
         }
 
-
+        /// <summary>
+        /// update the distance field variables
+        /// </summary>
         public void UpdateDFShader()
         {
             _dfShader.use();
@@ -260,6 +259,9 @@ namespace OpenTkVoxelEngine
             _dfShader.SetFloat("baseCaveMap.maxHeight", _caveMapNoiseVariables.maxHeight);
         }
 
+        /// <summary>
+        /// Update the marching cubes variables
+        /// </summary>
         public void UpdateMarchCubesShader()
         {
             _marchCubesShader.use();
@@ -278,19 +280,22 @@ namespace OpenTkVoxelEngine
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
+            //icreminent total time
             _totalTime += (float)args.Time;
 
+            //Update the distance field every frame, in theory not needed if the mesh is static
             OnDFUpdate();
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
+            //Basic shader stuff
             _shader.Use();
-
             _shader.SetMatrix4("model", Matrix4.Identity);
             _shader.SetMatrix4("view", _camera.View());
             _shader.SetMatrix4("projection", _camera.Projection());
 
+            //Update the light visually
             _shader.SetVec3("light.position", Vector3.UnitY);
             _shader.SetFloat("light.constant", 1.0f);
             _shader.SetFloat("light.linear", 0.09f);
@@ -299,11 +304,14 @@ namespace OpenTkVoxelEngine
             _shader.SetVec3("light.diffuse", new Vector3(0.8f, 0.8f, 0.8f));
             _shader.SetVec3("light.specular", new Vector3(.10f, .10f, .10f));
 
+            //Draw all of our triangles, missing empty verticies
             _vao.Bind();
             GL.DrawArrays(PrimitiveType.Triangles,0, (int)vertexCounterValue);
 
+            //Draws the imgui window
             DrawImgui();
 
+            //Swap buffers to draw the screen
             _window.SwapBuffers();
         }
 
@@ -317,7 +325,9 @@ namespace OpenTkVoxelEngine
 
         public override void OnLoad()
         {
+            //used to track the loadtime
             var watch = System.Diagnostics.Stopwatch.StartNew();
+
             //Change the clear color
             GL.ClearColor(Color.Black);
 
@@ -336,12 +346,15 @@ namespace OpenTkVoxelEngine
             //Enable Z Depth Testing
             GL.Enable(EnableCap.DepthTest);
 
+            //Log the execution Time
             watch.Stop();
-
             Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
 
         }
 
+        /// <summary>
+        /// The necassary functions in order to be called to update the volume
+        /// </summary>
         public void OnDFUpdate()
         {
             UpdateDFShader();
@@ -349,6 +362,10 @@ namespace OpenTkVoxelEngine
             RunShaders();
         }
 
+
+        /// <summary>
+        /// Draws the imgui window allowing the user to edit noise variables
+        /// </summary>
         public override void DrawImgui()
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
@@ -395,54 +412,10 @@ namespace OpenTkVoxelEngine
             _controller.Render();
         }
 
-
-        #region temp
-
-            int packIntUnitsAndFloat(int fourBitInt, float Float)
-        {
-
-            int units = (int)MathF.Floor(Float);
-            float largerFloat = Float - units;
-
-            // Make sure the 4-bit integer is 4 bits
-            fourBitInt &= 0xF;
-
-            // Make sure the units fit within 8 bits
-            units &= 0xFF;
-
-            // Convert the larger float to a 16-bit integer (adjust conversion factor as needed)
-            int intLargerFloat = (int)(largerFloat * 32767.0f);
-            intLargerFloat &= 0xFFFF;  // Make sure it's 16 bits
-
-            // Pack the numbers into a single int
-            int result = 0;
-            result |= (fourBitInt << 24);        // Shift fourBitInt to the left by 24 bits
-            result |= (units << 16);             // Shift units to the left by 16 bits
-            result |= intLargerFloat;            // No need to shift intLargerFloat
-
-            return result;
-        }
-
-        //Type and distance
-        (int, float) unpackIntUnitsAndFloat(int packedInt)
-        {
-            // Extract the 4-bit integer, 8-bit units, and 16-bit float from the packed int
-            int fourBitInt = (packedInt >> 24) & 0xF;
-            int units = (packedInt >> 16) & 0xFF;
-            int intLargerFloat = packedInt & 0xFFFF;
-
-            // Convert back to float (adjust conversion factor as needed)
-            float largerFloat = (float)(intLargerFloat) / 32767.0f;
-
-            // Print the unpacked values
-            return (fourBitInt, units + largerFloat);
-        }
-
-        public float CircleSDF(Vector3 point1, Vector3 point2, float radius)
-        {
-            return Vector3.Distance(point2, point1) - radius;
-        }
-        
+        /// <summary>
+        /// Table can be found at https://paulbourke.net/geometry/polygonise/
+        /// I Flattened it myself to make passing into a buffer just that bit easier
+        /// </summary>
         int[] triangulation = new int[]{
          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,
          0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,
@@ -702,6 +675,5 @@ namespace OpenTkVoxelEngine
          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
     };
 
-        #endregion
     }
 }

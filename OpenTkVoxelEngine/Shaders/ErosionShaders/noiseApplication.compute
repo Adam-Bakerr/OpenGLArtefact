@@ -139,16 +139,14 @@ void main()
 
 	ivec2 id = ivec2(gl_GlobalInvocationID.xy);
 
-	if(id.x >= vertexCount.x + 1 || id.y >= vertexCount.y + 1){
+	if(id.x >= vertexCount.x || id.y >= vertexCount.y){
 		return;
 	}
-
 
 	int index = id.y * vertexCount.x + id.x;
 
 	heightMap[index] = (fbm(vec3(id.x * resolution.x,0,id.y * resolution.y), scale) + fbm(vec3(id.x * resolution.x,0,id.y * resolution.y), scale / 2f)) / 2f;
-	//heightMap[index] = (fbm(vec3(id.x ,0,id.y ), scale) + fbm(vec3(id.x ,0,id.y ), scale / 2f)) / 2f;
-	//heightMap[index] = simplex3d_fractal(vec3(id.x ,0,id.y ) * scale)* strength;
+	
 	//Store min and max heights
 	int infoValue = int(heightMap[index] * minMaxPrecisionFactor);
 	minMax[0] = atomicMin(minMax[0],infoValue);

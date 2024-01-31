@@ -1,4 +1,5 @@
 ﻿
+using System.Numerics;
 using Dear_ImGui_Sample;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
@@ -23,7 +24,7 @@ namespace Engine
             var nativeWindowSettings = new NativeWindowSettings()
             {
                 ClientSize = new Vector2i(1920,1080),
-                Title = "StoxelEngine",
+                Title = "Procedural Generation Artifact",
                 Flags = ContextFlags.ForwardCompatible,
                 Location = new Vector2i(1024,1024)
             };
@@ -54,8 +55,14 @@ namespace Engine
         //Scenes
         static List<IScene> _scenes;
         static IScene ActiveScene;
-
         int activeSceneIndex = 0;
+        
+        //Current polygon mode
+        PolygonMode _polygonMode = PolygonMode.Fill;
+        PolygonMode[] _polygonModes = new []
+        {
+            PolygonMode.Fill, PolygonMode.Point, PolygonMode.Line
+        };
 
         //Enum of all scenes used to dynamically display imgui buttons
         enum scenes
@@ -78,7 +85,6 @@ namespace Engine
             _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
 
             UpdateFrequency = 0;
-            //VSync = VSyncMode.On;
 
             _scenes = new List<IScene>
             {
@@ -88,8 +94,7 @@ namespace Engine
                 new NoiseVisualization(this,_controller)
             };
 
-
-            ActiveScene = _scenes[3];
+            ActiveScene = _scenes[activeSceneIndex];
             ActiveScene.SetActive(true);
         }
 
@@ -110,15 +115,19 @@ namespace Engine
         {
             base.OnRenderFrame(args);
 
+
             //Update Imgui Controller
             _controller.Update(this, (float)args.Time);
 
 
+
+            //Hide debug window off screen
+            ImGui.SetWindowPos(new System.Numerics.Vector2(ClientSize.X * 2, ClientSize.Y * 2));
             //Draws Global Imgui
             ImGui.BeginMainMenuBar();
             string sceneName = (ActiveScene.GetType()).ToString();
             ImGui.SetNextItemWidth(100);
-            ImGui.BeginMenu("Select Scene");
+            ImGui.Text("Select Scene");
             for (int i = 0; i < (int)scenes.count; i++)
             {
                 if (i == activeSceneIndex)
@@ -137,7 +146,26 @@ namespace Engine
                     ImGui.EndDisabled();
                 }
             }
-            ImGui.EndMenu();
+   
+
+            ImGui.Text("Draw Mode");
+            for (int i = 0; i < 3; i++)
+            {
+                if (i == (int)_polygonMode)
+                {
+                    ImGui.BeginDisabled();
+                }
+                if (ImGui.Button(Enum.GetName(_polygonModes[i])))
+                {
+                    _polygonMode = _polygonModes[i];
+                    GL.PolygonMode(MaterialFace.FrontAndBack,_polygonMode);
+                }
+                if (i == (int)_polygonMode)
+                {
+                    ImGui.EndDisabled();
+                }
+            }
+
             ImGui.EndMainMenuBar();
 
         }
@@ -153,10 +181,7 @@ namespace Engine
                 Close();
             }
 
-
-            Title = (1 / args.Time).ToString();
-
-
+            Title = "FPS: "+(1 / args.Time).ToString("F1");
 
             //Handle closing the window
             if (IsKeyDown(Keys.LeftAlt) && _cursorLocked == true)

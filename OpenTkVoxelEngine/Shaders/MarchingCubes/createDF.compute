@@ -119,9 +119,9 @@ float smoothIntersectSDF(float distA, float distB, float k )
 }
 
 float f(vec3 Pos){
-	float s1 = 6.0/length(((vertexCount/2) + vec3(0,sin(totalTime) * 25,0)) - vec3(Pos));
-	float s2 = 6.0/length(((vertexCount/2) - vec3(0,cos(totalTime) * 25,0)) - vec3(Pos));
-	return smoothIntersectSDF(s1,s2,.5);
+	float s1 = 6.0/length(((vertexCount/2) + vec3(0,sin(totalTime) * 30,0)) - vec3(Pos));
+	float s2 = 6.0/length(((vertexCount/2) - vec3(0,cos(totalTime) * 30,0)) - vec3(Pos));
+	return smoothIntersectSDF(s1,s2,.8);
 }
 
 float fbm(vec3 x) {

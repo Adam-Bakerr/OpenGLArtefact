@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Shaders\Scenes\" />
     <Folder Include="Shaders\NoiseVisualization\" />
   </ItemGroup>
 
