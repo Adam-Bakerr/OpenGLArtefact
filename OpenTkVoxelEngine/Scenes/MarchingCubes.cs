@@ -20,8 +20,43 @@ using IntPtr = System.IntPtr;
 
 namespace OpenTkVoxelEngine
 {
+    class MCChunk
+    {
+        public int _vbo;
+        public Matrix4 modelMatrix;
+        public Vector3 position;
+        public uint vertexCount;
+        public MCChunk(Vector3i vertexDims, Vector3 res, Vector3 position )
+        {
+            modelMatrix = Matrix4.CreateTranslation(position);
+            this.position = position;
+        }
+
+        public void CreateNewVertexBuffer(Vector3i _dimensions, Vector3 res, int size)
+        {
+
+            int numPoints = _dimensions.X * _dimensions.Y * _dimensions.Z;
+            Vector3i numVoxelsPerAxis = new Vector3i(_dimensions.X - 1, _dimensions.Y - 1, _dimensions.Z - 1);
+            int numVoxels = numVoxelsPerAxis.X * numVoxelsPerAxis.Y * numVoxelsPerAxis.Z;
+            int maxTriangleCount = numVoxels * 5;
+            int maxVertexCount = maxTriangleCount * 4;
+
+            //Vertex Buffer
+            _vbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
+            GL.BufferData(BufferTarget.ArrayBuffer, sizeof(float) * 12 * maxVertexCount, nint.Zero, BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _vbo);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+        }
+
+    }
+
+
     internal class MarchingCubes : IScene
     {
+        List<MCChunk> chunks = new List<MCChunk>();
+        List<MCChunk> chunksToCreate = new List<MCChunk>();
+
         //Camera
         Camera _camera;
 
@@ -45,8 +80,9 @@ namespace OpenTkVoxelEngine
         int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        Vector3i _dimensions = new Vector3i(128, 128, 128);
-        Vector3 _resolution = new Vector3(.1f);
+        Matrix4 _model = Matrix4.Identity;
+        Vector3i _dimensions = new Vector3i(16, 132, 16);
+        Vector3 _resolution = new Vector3(.125f);
         int _workGroupSize = 8;
         float _surfaceLevel = .5f;
         float _grassBlendAmount = .875f;
@@ -76,18 +112,17 @@ namespace OpenTkVoxelEngine
         /// </summary>
         public void CreateBuffers()
         {
+            //Vertex Buffer
             int numPoints = _dimensions.X * _dimensions.Y * _dimensions.Z;
             Vector3i numVoxelsPerAxis = new Vector3i(_dimensions.X - 1, _dimensions.Y - 1, _dimensions.Z - 1);
             int numVoxels = numVoxelsPerAxis.X * numVoxelsPerAxis.Y * numVoxelsPerAxis.Z;
             int maxTriangleCount = numVoxels * 5;
             int maxVertexCount = maxTriangleCount * 4;
-            int maxver = MaxVertexCount();
-
 
             //Vertex Buffer
             _vbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, VertexSize() * maxVertexCount, nint.Zero, BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, VertexSize() * maxVertexCount, nint.Zero, BufferUsageHint.DynamicDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _vbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
@@ -100,7 +135,7 @@ namespace OpenTkVoxelEngine
             //DF buffer
             _dfbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer,_dfbo);
-            GL.BufferData(BufferTarget.ShaderStorageBuffer,sizeof(float) * VertexCount(),nint.Zero,BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ShaderStorageBuffer,sizeof(float) * VertexCount(),nint.Zero,BufferUsageHint.DynamicDraw);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _dfbo);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
@@ -123,7 +158,6 @@ namespace OpenTkVoxelEngine
             };
             _vao.Enable(Pointers);
 
-
         }
 
         /// <summary>
@@ -140,8 +174,9 @@ namespace OpenTkVoxelEngine
         /// <summary>
         /// Runs The Shaders
         /// </summary>
-        public void RunShaders()
+        public void RunShaders(MCChunk chunk)
         {
+
             ResetAtomicCounter();
 
             int dfx = (int)(MathF.Ceiling(MathF.Max((_dimensions.X ), 1) / _workGroupSize));
@@ -156,6 +191,10 @@ namespace OpenTkVoxelEngine
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _dfbo);
 
             _dfShader.use();
+            _dfShader.SetVec3("chunkPosition", chunk.position);
+            Console.WriteLine(chunk.position);
+            _dfShader.SetFloat("totalTime", _totalTime);
+            //_dfShader.SetBool("testSpheres", _drawTestSpheres);
 
             GL.DispatchCompute(dfx, dfy, dfz);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
@@ -177,20 +216,40 @@ namespace OpenTkVoxelEngine
             _marchCubesShader.use();
 
             int x = (int)(MathF.Ceiling(MathF.Max((_dimensions.X - 1), 1) / _workGroupSize));
-
             int y = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y - 1),1) / _workGroupSize));
-
             int z = (int)(MathF.Ceiling(MathF.Max((_dimensions.Z - 1), 1) / _workGroupSize)); 
+            
             GL.DispatchCompute(x, y, z);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
-            GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer,0,sizeof(uint),ref vertexCounterValue);
+            GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer,0,sizeof(uint),ref chunk.vertexCount);
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
 
+            if(chunk._vbo == 0) chunk._vbo = GL.GenBuffer();
+            
+            GL.BindBuffer(BufferTarget.ArrayBuffer, chunk._vbo);
+            GL.BufferData(BufferTarget.ArrayBuffer, VertexSize() * (int)chunk.vertexCount, nint.Zero, BufferUsageHint.DynamicDraw);
+            
+            
+            GL.BindBuffer(BufferTarget.CopyReadBuffer, _vbo);
+            GL.BindBuffer(BufferTarget.CopyWriteBuffer, chunk._vbo);
+            GL.CopyBufferSubData(BufferTarget.CopyReadBuffer,BufferTarget.CopyWriteBuffer, nint.Zero, nint.Zero, VertexSize() * (int)chunk.vertexCount);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
 
 
+            chunks.Add(chunk);
         }
+
+        public void DeleteBuffers()
+        {
+            GL.DeleteBuffer(_vbo);
+            GL.DeleteBuffer(_dfbo);
+            GL.DeleteBuffer(_tcbo);
+            GL.DeleteBuffer(_vcbo);
+        }
+
 
         /// <summary>
         /// create all shaders 
@@ -203,8 +262,8 @@ namespace OpenTkVoxelEngine
 
             //Create our cube df data
             _dfShader = new ComputeShader(_assemblyPath, _distanceFieldGenerationPath);
-            _heightMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 19.935f, 0.105f, 1, 150, 1);
-            _caveMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .2f, 4.31f, 0, 19.935f, 0.05f, 0, 150, 1);
+            _heightMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 19.935f, 0.005f, 0, 150, 1);
+            _caveMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .2f, 4.31f, 0, 19.935f, 0.105f, 0, 150, 1);
 
             UpdateDFShader();
 
@@ -275,16 +334,49 @@ namespace OpenTkVoxelEngine
 
         public override void OnUpdateFrame(FrameEventArgs args)
         {
+            chunksToCreate = chunksToCreate.OrderBy(o => ((o.position) - _camera.Position()).Length).ToList();
+            if (chunksToCreate.Count > 0)
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                float i = 0;
+                while (i < frameTime)
+                {
+                    //used to track the loadtime
+                    Vector3 cameraPosition = _camera.Position();
+                    Vector3 chunkPos = chunksToCreate[0].position;
+                    if (Vector3.Distance(new Vector3(chunkPos.X, cameraPosition.Y, chunkPos.Z), cameraPosition) < 32)
+                    {
+                        RunShaders(chunksToCreate[0]);
+                        chunksToCreate.RemoveAt(0);
+                    }
+
+                    i += (float)watch.Elapsed.TotalSeconds;
+                }
+                watch.Stop();
+            }
+
+            for(int i = 0 ; i < chunks.Count ; i++)
+            {
+                Vector3 cameraPosition = _camera.Position();
+                Vector3 chunkPos = chunks[i].position;
+                if (Vector3.Distance(new Vector3(chunkPos.X,cameraPosition.Y, chunkPos.Z), cameraPosition) > 32)
+                {
+                    chunksToCreate.Add(new MCChunk(_dimensions,_resolution,chunkPos));
+                    int bufferToDelete = chunks[i]._vbo;
+                    chunks.RemoveAt(i);
+                    GL.DeleteBuffer(bufferToDelete);
+                }
+            }
             _camera.OnUpdateFrame(args);
         }
+
+        public float frameTime = 0;
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
             //icreminent total time
             _totalTime += (float)args.Time;
-
-            //Update the distance field every frame, in theory not needed if the mesh is static
-            OnDFUpdate();
+            frameTime = (float)args.Time;
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -306,7 +398,22 @@ namespace OpenTkVoxelEngine
 
             //Draw all of our triangles, missing empty verticies
             _vao.Bind();
-            GL.DrawArrays(PrimitiveType.Triangles,0, (int)vertexCounterValue);
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                GL.BindBuffer(BufferTarget.ArrayBuffer, chunks[i]._vbo);
+                _shader.SetMatrix4("model", chunks[i].modelMatrix);
+
+                List<(int, int, VertexAttribPointerType, bool, int, int)> Pointers = new List<(int, int, VertexAttribPointerType, bool, int, int)>()
+                {
+                    (_shader.GetAttribLocation("aPosition"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 0),
+                    (_shader.GetAttribLocation("aColor"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 4 * sizeof(float)),
+                    (_shader.GetAttribLocation("aNormal"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 8 * sizeof(float))
+
+                };
+                _vao.Enable(Pointers);
+
+                GL.DrawArrays(PrimitiveType.Triangles, 0, (int)chunks[i].vertexCount);
+            }
 
             //Draws the imgui window
             DrawImgui();
@@ -339,9 +446,17 @@ namespace OpenTkVoxelEngine
 
             //Create Buffers
             CreateBuffers();
+            for (int x = 0; x < 256; x++)
+            {
+                    for (int z = 0; z < 256; z++)
+                    {
+                        chunksToCreate.Add(new MCChunk(_dimensions, _resolution, new Vector3(x,0,z) * (_dimensions - Vector3i.One) * _resolution));
+                    }
+            }
 
-            //Run ALl The Shaders
-            RunShaders();
+
+
+            //DeleteBuffers();
 
             //Enable Z Depth Testing
             GL.Enable(EnableCap.DepthTest);
@@ -359,7 +474,11 @@ namespace OpenTkVoxelEngine
         {
             UpdateDFShader();
             UpdateMarchCubesShader();
-            RunShaders();
+
+            for (int i = 0 ; i < chunks.Count ; i++)
+            {
+                RunShaders(chunks[i]);
+            }
         }
 
 
