@@ -56,7 +56,7 @@ namespace Engine
         //Scenes
         static List<IScene> _scenes;
         static IScene ActiveScene;
-        int activeSceneIndex = 3;
+        int activeSceneIndex = 1;
         
         //Current polygon mode
         PolygonMode _polygonMode = PolygonMode.Fill;

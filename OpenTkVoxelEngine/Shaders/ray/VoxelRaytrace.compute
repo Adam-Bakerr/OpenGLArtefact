@@ -1,6 +1,4 @@
 #version 430
-
-
 //Define size of local workgroup
 layout(local_size_x = 32, local_size_y = 32) in;
 
@@ -19,6 +17,7 @@ uniform vec3 ro;
 uniform vec3 position;
 uniform float voxelSize;
 
+const float rayBias = 0.001;
 
 vec3 CalcRayDirection(vec2 uv){
  return normalize(uv.x * cameraRight + uv.y * cameraUp + 1.0 * cameraForward);
@@ -74,6 +73,7 @@ void main()
 	vec2 uv = (vec2(id) - vec2(dimensions) * .5) / float(dimensions.y);
     vec3 rd = CalcRayDirection(uv);
 
+
     float near; // t at which we first enter the voxel bound
     float far;  // t at which we first exit the voxel bound
     vec3 minb = position;
@@ -83,9 +83,16 @@ void main()
     //Check if we intersect the area taken by the texture
     if(!intersectAABB(ro,rd,minb,maxb,near,far))return;
 
+    //Clamp the ray doesnt get reversed
+    near = max(near,0);
+    far = max(far,near);
+
     vec3 pointOfEntry = ro + rd * near;
     vec3 pointOfExit = ro + rd * far;
 
+    ivec3 steps = CalculateDirectionSteps(rd);
+
+    //Removes Circular Artifacts
     pointOfEntry = max(pointOfEntry,minb);
     pointOfExit = min(pointOfExit,maxb);
 
@@ -93,23 +100,24 @@ void main()
     pointOfEntry -= position;
     pointOfExit -= position;
 
+
     ivec3 CurrentVoxel = RoundToVoxel(pointOfEntry);
     ivec3 ExitVoxel =  RoundToVoxel(pointOfExit);
 
-    ivec3 steps = CalculateDirectionSteps(rd);
 
     //Max amount of time taken to cross a boundary in each direction
     vec3 nextBoundary = vec3((CurrentVoxel.x + steps.x) * voxelSize,(CurrentVoxel.y + steps.y) * voxelSize,(CurrentVoxel.z + steps.z) * voxelSize);
 
     vec3 tmax = vec3(
-    (nextBoundary.x - pointOfEntry.x)/(max(0.0001,abs(rd.x)) * steps.x),
-    (nextBoundary.y - pointOfEntry.y)/(max(0.0001,abs(rd.y)) * steps.y),
-    (nextBoundary.z - pointOfEntry.z)/(max(0.0001,abs(rd.z)) * steps.z)
+    (nextBoundary.x - pointOfEntry.x)/(max(rayBias,abs(rd.x)) * steps.x),
+    (nextBoundary.y - pointOfEntry.y)/(max(rayBias,abs(rd.y)) * steps.y),
+    (nextBoundary.z - pointOfEntry.z)/(max(rayBias,abs(rd.z)) * steps.z)
     );
 
-    float tdeltaX = voxelSize / (max(0.0001,abs(rd.x)) * steps.x) * steps.x;
-    float tdeltaY = voxelSize / (max(0.0001,abs(rd.y)) * steps.y) * steps.y;
-    float tdeltaZ = voxelSize / (max(0.0001,abs(rd.z)) * steps.z) * steps.z;
+    float tdeltaX = voxelSize / (max(rayBias,abs(rd.x)) * steps.x) * steps.x;
+    float tdeltaY = voxelSize / (max(rayBias,abs(rd.y)) * steps.y) * steps.y;
+    float tdeltaZ = voxelSize / (max(rayBias,abs(rd.z)) * steps.z) * steps.z;
+
 
     CurrentVoxel.x -= int(CurrentVoxel[0]!=ExitVoxel[0] && steps.x == -1);
     CurrentVoxel.y -= int(CurrentVoxel[1]!=ExitVoxel[1] && steps.y == -1);
@@ -120,7 +128,7 @@ void main()
     while(InBounds(CurrentVoxel)) {
     vec4 color = vec4(0);
     if(SampleColorAtVoxel(CurrentVoxel, color)){
-        color *= vec4((vec3(n) + vec3(.5)) / 2.0,1);
+        color *= (dot(n,vec3(0,-1,0) * .8) + .2);
         imageStore(screenTexture,id,color);
         return;
     }

@@ -263,6 +263,7 @@ namespace OpenTkVoxelEngine.Scenes
             _tracer.SetVec3("position", Vector3.Zero);
             _tracer.SetFloat("voxelSize", 1 / (float)_voxelDimensions);
             _tracer.SetFloat("chunkSize", chunkSize);
+            _tracer.SetFloat("time",time);
         }
 
         public void CreateBuffers()
