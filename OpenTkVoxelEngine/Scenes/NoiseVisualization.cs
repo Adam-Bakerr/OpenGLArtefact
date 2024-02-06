@@ -33,7 +33,23 @@ namespace OpenTkVoxelEngine
         float _time;
 
         FBMNoiseVariables _noiseVariables;
+        float _jitter = 1f;
+        NoiseType currentNoiseType = NoiseType.PerlinFBM;
+        enum NoiseType
+        {
+            Perlin,
+            PerlinFBM,
+            Vornori,
+            VornoriFBM,
+            Curl,
+            CurlFBM,
+            Snoise,
+            SnoiseFBM,
+            DomainWarping,
+            normalNoise,
+            count
 
+        }
 
         public NoiseVisualization(GameWindow window, ImGuiController controller) : base(window, controller)
         {
@@ -81,19 +97,50 @@ namespace OpenTkVoxelEngine
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
 
+
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(0, 70));
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(900, _window.ClientSize.Y));
             ImGui.SetNextItemWidth(900);
             ImGui.Begin("Noise Variables", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground);
-            ImGui.DragInt("seed", ref _noiseVariables.seed, 1);
-            ImGui.DragInt("numLayers", ref _noiseVariables.NumLayers, 1, 0, 8);
-            ImGui.DragFloat("baseRoughness", ref _noiseVariables.baseRoughness, .005f, 0);
-            ImGui.DragFloat("Roughness", ref _noiseVariables.roughness, .005f, 0);
-            ImGui.DragFloat("persistence", ref _noiseVariables.persistence, .01f, 0);
-            ImGui.DragFloat("strength", ref _noiseVariables.strength, 0.005f, 0.0001f);
-            ImGui.DragFloat("scale", ref _noiseVariables.scale, .005f, 0.0001f);
-            ImGui.End();
 
+            //Select Noise Type
+            for (int i = 0; i < (int)NoiseType.count; i++)
+            {
+                if (i == (int)currentNoiseType)
+                {
+                    ImGui.BeginDisabled();
+                }
+                if (ImGui.Button(Enum.GetName((NoiseType)i)))
+                {
+                    currentNoiseType = (NoiseType)i;
+                }
+                if (i == (int)currentNoiseType)
+                {
+                    ImGui.EndDisabled();
+                }
+            }
+
+            if (currentNoiseType == NoiseType.CurlFBM || currentNoiseType == NoiseType.PerlinFBM || currentNoiseType == NoiseType.SnoiseFBM || currentNoiseType == NoiseType.VornoriFBM || currentNoiseType == NoiseType.DomainWarping)
+            {
+                ImGui.DragInt("seed", ref _noiseVariables.seed, 1);
+                ImGui.DragInt("numLayers", ref _noiseVariables.NumLayers, 1, 0, 8);
+                ImGui.DragFloat("baseRoughness", ref _noiseVariables.baseRoughness, .005f, 0);
+                ImGui.DragFloat("Roughness", ref _noiseVariables.roughness, .005f, 0);
+                ImGui.DragFloat("persistence", ref _noiseVariables.persistence, .01f, 0);
+                ImGui.DragFloat("strength", ref _noiseVariables.strength, 0.005f, 0.0001f);
+                ImGui.DragFloat("scale", ref _noiseVariables.scale, .005f, 0.0001f);
+                
+            }
+
+            if (currentNoiseType == NoiseType.Vornori || currentNoiseType == NoiseType.VornoriFBM)
+            {
+                ImGui.DragFloat("jitter", ref _jitter, .005f, 0.0001f);
+
+
+            }
+
+
+            ImGui.End();
             _controller.Render();
         }
 
@@ -113,6 +160,9 @@ namespace OpenTkVoxelEngine
             _shader.SetVec3("cameraUp", _camera.Up());
             _shader.SetVec3("cameraRight", _camera.Right());
 
+
+            _shader.SetInt("currentNoiseType",(int)currentNoiseType);
+
             _shader.SetInt("seed", _noiseVariables.seed);
             _shader.SetInt("NumLayers", _noiseVariables.NumLayers);
             _shader.SetVec3("centre", _noiseVariables.centre);
@@ -122,6 +172,7 @@ namespace OpenTkVoxelEngine
             _shader.SetFloat("strength", _noiseVariables.strength);
             _shader.SetFloat("scale", _noiseVariables.scale);
             _shader.SetFloat("lacunicity", _noiseVariables.lacunicity);
+            _shader.SetFloat("jitter",_jitter);
 
         }
 

@@ -8,6 +8,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTkVoxelEngine;
+using OpenTkVoxelEngine.Scenes;
 using Buffer = OpenTK.Graphics.OpenGL4.Buffer;
 
 namespace Engine
@@ -55,7 +56,7 @@ namespace Engine
         //Scenes
         static List<IScene> _scenes;
         static IScene ActiveScene;
-        int activeSceneIndex = 1;
+        int activeSceneIndex = 3;
         
         //Current polygon mode
         PolygonMode _polygonMode = PolygonMode.Fill;
@@ -91,7 +92,8 @@ namespace Engine
                 new HydraulicErosion(this, _controller),
                 new MarchingCubes(this, _controller),
                 new SurfaceNets(this,_controller),
-                new NoiseVisualization(this,_controller)
+                new NoiseVisualization(this,_controller),
+                new CubeScene(this,_controller)
             };
 
             ActiveScene = _scenes[activeSceneIndex];
@@ -111,14 +113,24 @@ namespace Engine
 
         bool _cursorLocked = true;
 
+        float frames = 0;
+        float fps = 0;
+        float time = 0;
+
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             base.OnRenderFrame(args);
-
+            frames++;
+            time += (float)args.Time;
+            if (time >= 1)
+            {
+                Title = "FPS: " + (frames).ToString("F1");
+                frames = 0;
+                time = 0;
+            }
 
             //Update Imgui Controller
             _controller.Update(this, (float)args.Time);
-
 
 
             //Hide debug window off screen
@@ -180,8 +192,6 @@ namespace Engine
             {
                 Close();
             }
-
-            Title = "FPS: "+(1 / args.Time).ToString("F1");
 
             //Handle closing the window
             if (IsKeyDown(Keys.LeftAlt) && _cursorLocked == true)

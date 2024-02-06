@@ -13,13 +13,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Shaders\Scenes\**" />
+    <EmbeddedResource Remove="Shaders\Scenes\**" />
+    <None Remove="Shaders\Scenes\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ImGui.NET" Version="1.90.0.1" />
     <PackageReference Include="OpenTK" Version="4.8.2" />
     <PackageReference Include="StbImageSharp" Version="2.27.13" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Shaders\Scenes\" />
+    <Folder Include="Shaders\ray\" />
     <Folder Include="Shaders\NoiseVisualization\" />
   </ItemGroup>
 

@@ -1,0 +1,151 @@
+#version 430
+
+
+//Define size of local workgroup
+layout(local_size_x = 32, local_size_y = 32) in;
+
+layout(rgba32f, binding = 0) uniform image2D screenTexture;
+layout(rgba32f, binding = 1) uniform image3D voxelTexture;
+
+uniform vec2 dimensions;
+uniform ivec3 textureDims;
+
+uniform vec3 cameraForward;
+uniform vec3 cameraRight;
+uniform vec3 cameraUp;
+uniform vec3 ro;
+
+
+uniform vec3 position;
+uniform float voxelSize;
+
+
+vec3 CalcRayDirection(vec2 uv){
+ return normalize(uv.x * cameraRight + uv.y * cameraUp + 1.0 * cameraForward);
+}
+
+bool intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax , inout float tNear, inout float tFar) {
+    vec3 tMin = (boxMin - rayOrigin) / rayDir;
+    vec3 tMax = (boxMax - rayOrigin) / rayDir;
+    vec3 t1 = min(tMin, tMax);
+    vec3 t2 = max(tMin, tMax);
+    tNear = max(max(t1.x, t1.y), t1.z);
+    tFar = min(min(t2.x, t2.y), t2.z);
+    return tNear <= tFar;
+};
+
+ivec3 CalculateDirectionSteps(vec3 rd){
+    int x = rd.x >= 0 ? 1 : -1;
+    int y = rd.y >= 0 ? 1 : -1;
+    int z = rd.z >= 0 ? 1 : -1;
+    return ivec3(x,y,z);
+}
+
+ivec3 RoundToVoxel(vec3 p){
+    
+    float x = floor(p.x / (voxelSize));
+    float y = floor(p.y / (voxelSize));
+    float z = floor(p.z / (voxelSize));
+    return ivec3(x,y,z);
+}
+
+bool SampleColorAtVoxel(ivec3 p, out vec4 color){
+    color = imageLoad(voxelTexture, p);
+    return color.xyz != vec3(0);
+}
+
+bool InBounds(ivec3 p){
+    return(
+    p.x >= 0 && p.x < textureDims.x &&
+    p.y >= 0 && p.y < textureDims.y &&
+    p.z >= 0 && p.z < textureDims.z
+    );
+}
+
+
+void main()
+{ 
+	ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+
+    //clear the pixeel
+    imageStore(screenTexture,id,vec4(0));
+
+    //Calculate ray direction
+	vec2 uv = (vec2(id) - vec2(dimensions) * .5) / float(dimensions.y);
+    vec3 rd = CalcRayDirection(uv);
+
+    float near; // t at which we first enter the voxel bound
+    float far;  // t at which we first exit the voxel bound
+    vec3 minb = position;
+    vec3 maxb = position + (vec3(1));
+   
+
+    //Check if we intersect the area taken by the texture
+    if(!intersectAABB(ro,rd,minb,maxb,near,far))return;
+
+    vec3 pointOfEntry = ro + rd * near;
+    vec3 pointOfExit = ro + rd * far;
+
+    pointOfEntry = max(pointOfEntry,minb);
+    pointOfExit = min(pointOfExit,maxb);
+
+    //convert points relative to the bounds
+    pointOfEntry -= position;
+    pointOfExit -= position;
+
+    ivec3 CurrentVoxel = RoundToVoxel(pointOfEntry);
+    ivec3 ExitVoxel =  RoundToVoxel(pointOfExit);
+
+    ivec3 steps = CalculateDirectionSteps(rd);
+
+    //Max amount of time taken to cross a boundary in each direction
+    vec3 nextBoundary = vec3((CurrentVoxel.x + steps.x) * voxelSize,(CurrentVoxel.y + steps.y) * voxelSize,(CurrentVoxel.z + steps.z) * voxelSize);
+
+    vec3 tmax = vec3(
+    (nextBoundary.x - pointOfEntry.x)/(max(0.0001,abs(rd.x)) * steps.x),
+    (nextBoundary.y - pointOfEntry.y)/(max(0.0001,abs(rd.y)) * steps.y),
+    (nextBoundary.z - pointOfEntry.z)/(max(0.0001,abs(rd.z)) * steps.z)
+    );
+
+    float tdeltaX = voxelSize / (max(0.0001,abs(rd.x)) * steps.x) * steps.x;
+    float tdeltaY = voxelSize / (max(0.0001,abs(rd.y)) * steps.y) * steps.y;
+    float tdeltaZ = voxelSize / (max(0.0001,abs(rd.z)) * steps.z) * steps.z;
+
+    CurrentVoxel.x -= int(CurrentVoxel[0]!=ExitVoxel[0] && steps.x == -1);
+    CurrentVoxel.y -= int(CurrentVoxel[1]!=ExitVoxel[1] && steps.y == -1);
+    CurrentVoxel.z -= int(CurrentVoxel[2]!=ExitVoxel[2] && steps.z == -1);
+
+    vec3 n = vec3(0);
+
+    while(InBounds(CurrentVoxel)) {
+    vec4 color = vec4(0);
+    if(SampleColorAtVoxel(CurrentVoxel, color)){
+        color *= vec4((vec3(n) + vec3(.5)) / 2.0,1);
+        imageStore(screenTexture,id,color);
+        return;
+    }
+
+
+    if (tmax.x < tmax.y) {
+      if (tmax.x < tmax.z) {
+        CurrentVoxel[0] += steps.x;
+        tmax.x += tdeltaX;
+        n = vec3(steps.x,0,0);
+      } else {
+        CurrentVoxel[2] += steps.z;
+        tmax.z += tdeltaZ;
+        n = vec3(0,0,steps.z);
+      }
+    } else {
+      if (tmax.y < tmax.z) {
+        CurrentVoxel[1] += steps.y;
+        tmax.y += tdeltaY;
+        n = vec3(0,steps.y,0);
+      } else {
+        CurrentVoxel[2] += steps.z;
+        tmax.z += tdeltaZ;
+        n = vec3(0,0,steps.z);
+      }
+    }
+  }
+}

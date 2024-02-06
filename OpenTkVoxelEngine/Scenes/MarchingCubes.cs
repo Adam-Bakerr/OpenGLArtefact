@@ -344,7 +344,7 @@ namespace OpenTkVoxelEngine
                     //used to track the loadtime
                     Vector3 cameraPosition = _camera.Position();
                     Vector3 chunkPos = chunksToCreate[0].position;
-                    if (Vector3.Distance(new Vector3(chunkPos.X, cameraPosition.Y, chunkPos.Z), cameraPosition) < 32)
+                    if (Vector3.Distance(new Vector3(chunkPos.X, cameraPosition.Y, chunkPos.Z), cameraPosition) < 64)
                     {
                         RunShaders(chunksToCreate[0]);
                         chunksToCreate.RemoveAt(0);
@@ -359,7 +359,7 @@ namespace OpenTkVoxelEngine
             {
                 Vector3 cameraPosition = _camera.Position();
                 Vector3 chunkPos = chunks[i].position;
-                if (Vector3.Distance(new Vector3(chunkPos.X,cameraPosition.Y, chunkPos.Z), cameraPosition) > 32)
+                if (Vector3.Distance(new Vector3(chunkPos.X,cameraPosition.Y, chunkPos.Z), cameraPosition) > 64)
                 {
                     chunksToCreate.Add(new MCChunk(_dimensions,_resolution,chunkPos));
                     int bufferToDelete = chunks[i]._vbo;
