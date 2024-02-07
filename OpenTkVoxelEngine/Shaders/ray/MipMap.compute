@@ -1,0 +1,24 @@
+#version 430
+//Define size of local workgroup
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(rgba32f, binding = 0) uniform image3D voxelTexture;
+layout(rgba32f, binding = 1) uniform image3D voxelMip1;
+layout(rgba32f, binding = 2) uniform image3D voxelMip2;
+layout(rgba32f, binding = 3) uniform image3D voxelMip3;
+layout(rgba32f, binding = 4) uniform image3D voxelMip4;
+layout(rgba32f, binding = 5) uniform image3D voxelMip5;
+
+uniform ivec3 textureDims;
+
+
+void main()
+{ 
+	ivec3 id = ivec3(gl_GlobalInvocationID.xyz);
+	imageStore(voxelMip1,id,imageLoad(voxelTexture,id * 2));
+	imageStore(voxelMip2,id,imageLoad(voxelTexture,id * 4));
+	imageStore(voxelMip3,id,imageLoad(voxelTexture,id * 8));
+	imageStore(voxelMip4,id,imageLoad(voxelTexture,id * 16));
+	imageStore(voxelMip5,id,imageLoad(voxelTexture,id * 32));
+
+}

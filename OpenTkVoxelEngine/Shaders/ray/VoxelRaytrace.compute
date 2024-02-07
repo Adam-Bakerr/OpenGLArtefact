@@ -4,6 +4,8 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(rgba32f, binding = 0) uniform image2D screenTexture;
 layout(rgba32f, binding = 1) uniform image3D voxelTexture;
+uniform sampler3D voxelTextureSampler;
+
 
 uniform vec2 dimensions;
 uniform ivec3 textureDims;
@@ -18,6 +20,7 @@ uniform vec3 position;
 uniform float voxelSize;
 
 const float rayBias = 0.001;
+uniform int mipLevel;
 
 vec3 CalcRayDirection(vec2 uv){
  return normalize(uv.x * cameraRight + uv.y * cameraUp + 1.0 * cameraForward);
@@ -41,24 +44,16 @@ ivec3 CalculateDirectionSteps(vec3 rd){
 }
 
 ivec3 RoundToVoxel(vec3 p){
-    
-    float x = floor(p.x / (voxelSize));
-    float y = floor(p.y / (voxelSize));
-    float z = floor(p.z / (voxelSize));
-    return ivec3(x,y,z);
+    return ivec3(floor(p / (voxelSize)));
 }
 
 bool SampleColorAtVoxel(ivec3 p, out vec4 color){
-    color = imageLoad(voxelTexture, p);
+    color = texelFetch(voxelTextureSampler, p , mipLevel);
     return color.xyz != vec3(0);
 }
 
 bool InBounds(ivec3 p){
-    return(
-    p.x >= 0 && p.x < textureDims.x &&
-    p.y >= 0 && p.y < textureDims.y &&
-    p.z >= 0 && p.z < textureDims.z
-    );
+    return min(p,textureDims) == max(p,vec3(0));
 }
 
 
@@ -85,12 +80,11 @@ void main()
 
     //Clamp the ray doesnt get reversed
     near = max(near,0);
-    far = max(far,near);
+
+    ivec3 steps = CalculateDirectionSteps(rd);
 
     vec3 pointOfEntry = ro + rd * near;
     vec3 pointOfExit = ro + rd * far;
-
-    ivec3 steps = CalculateDirectionSteps(rd);
 
     //Removes Circular Artifacts
     pointOfEntry = max(pointOfEntry,minb);
@@ -100,58 +94,51 @@ void main()
     pointOfEntry -= position;
     pointOfExit -= position;
 
-
     ivec3 CurrentVoxel = RoundToVoxel(pointOfEntry);
     ivec3 ExitVoxel =  RoundToVoxel(pointOfExit);
 
-
     //Max amount of time taken to cross a boundary in each direction
-    vec3 nextBoundary = vec3((CurrentVoxel.x + steps.x) * voxelSize,(CurrentVoxel.y + steps.y) * voxelSize,(CurrentVoxel.z + steps.z) * voxelSize);
+    vec3 nextBoundary = (CurrentVoxel + vec3(steps)) * voxelSize;
 
-    vec3 tmax = vec3(
-    (nextBoundary.x - pointOfEntry.x)/(max(rayBias,abs(rd.x)) * steps.x),
-    (nextBoundary.y - pointOfEntry.y)/(max(rayBias,abs(rd.y)) * steps.y),
-    (nextBoundary.z - pointOfEntry.z)/(max(rayBias,abs(rd.z)) * steps.z)
-    );
-
-    float tdeltaX = voxelSize / (max(rayBias,abs(rd.x)) * steps.x) * steps.x;
-    float tdeltaY = voxelSize / (max(rayBias,abs(rd.y)) * steps.y) * steps.y;
-    float tdeltaZ = voxelSize / (max(rayBias,abs(rd.z)) * steps.z) * steps.z;
-
+    vec3 tmax = ((nextBoundary - pointOfEntry))/rd;
+    vec3 tdelta = vec3(voxelSize) / (rd * steps);
 
     CurrentVoxel.x -= int(CurrentVoxel[0]!=ExitVoxel[0] && steps.x == -1);
     CurrentVoxel.y -= int(CurrentVoxel[1]!=ExitVoxel[1] && steps.y == -1);
     CurrentVoxel.z -= int(CurrentVoxel[2]!=ExitVoxel[2] && steps.z == -1);
 
     vec3 n = vec3(0);
+    vec4 color = vec4(0);
+
+
 
     while(InBounds(CurrentVoxel)) {
-    vec4 color = vec4(0);
+    
     if(SampleColorAtVoxel(CurrentVoxel, color)){
-        color *= (dot(n,vec3(0,-1,0) * .8) + .2);
+        color -= .2;
+        color.xyz += vec3(dot(n,vec3(0,-1,0))) * .2;
         imageStore(screenTexture,id,color);
         return;
     }
 
-
     if (tmax.x < tmax.y) {
       if (tmax.x < tmax.z) {
         CurrentVoxel[0] += steps.x;
-        tmax.x += tdeltaX;
+        tmax.x += tdelta.x;
         n = vec3(steps.x,0,0);
       } else {
         CurrentVoxel[2] += steps.z;
-        tmax.z += tdeltaZ;
+        tmax.z += tdelta.z;
         n = vec3(0,0,steps.z);
       }
     } else {
       if (tmax.y < tmax.z) {
         CurrentVoxel[1] += steps.y;
-        tmax.y += tdeltaY;
+        tmax.y += tdelta.y;
         n = vec3(0,steps.y,0);
       } else {
         CurrentVoxel[2] += steps.z;
-        tmax.z += tdeltaZ;
+        tmax.z += tdelta.z;
         n = vec3(0,0,steps.z);
       }
     }
