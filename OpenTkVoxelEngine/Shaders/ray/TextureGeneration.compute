@@ -1,0 +1,28 @@
+#version 430
+//Define size of local workgroup
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(Rgba32f, binding = 0) uniform image3D voxelTexture;
+
+
+uniform int textureDims;
+
+void main()
+{ 
+	ivec3 id = ivec3(gl_GlobalInvocationID.xyz);
+
+	if(id.x >= textureDims || id.y >= textureDims || id.z >= textureDims){
+		return;
+	}
+
+	bool isSolid =  distance(id,vec3(textureDims)/2.0) < (textureDims * textureDims) / 560f;
+
+	vec4 color = vec4(
+		isSolid ? id.x/float(textureDims) : 0, //r
+		isSolid ? id.y/float(textureDims) : 0, //g
+		isSolid ? id.z/float(textureDims) : 0, //b
+		isSolid ? 1 : 0 //a
+	);
+
+	imageStore(voxelTexture,id,color);
+}

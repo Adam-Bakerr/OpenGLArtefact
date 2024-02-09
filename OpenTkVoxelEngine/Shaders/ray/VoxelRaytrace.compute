@@ -8,7 +8,8 @@ uniform sampler3D voxelTextureSampler;
 
 
 uniform vec2 dimensions;
-uniform ivec3 textureDims;
+uniform int textureDims[5];
+uniform float chunkSize;
 
 uniform vec3 cameraForward;
 uniform vec3 cameraRight;
@@ -17,7 +18,7 @@ uniform vec3 ro;
 
 
 uniform vec3 position;
-uniform float voxelSize;
+uniform float voxelSize[5];
 
 const float rayBias = 0.001;
 uniform int mipLevel;
@@ -43,38 +44,32 @@ ivec3 CalculateDirectionSteps(vec3 rd){
     return ivec3(x,y,z);
 }
 
-ivec3 RoundToVoxel(vec3 p){
-    return ivec3(floor(p / (voxelSize)));
-}
-
-bool SampleColorAtVoxel(ivec3 p, out vec4 color){
-    color = texelFetch(voxelTextureSampler, p , mipLevel);
+bool SampleColorAtVoxel(ivec3 p, int mip, out vec4 color){
+    color = texelFetch(voxelTextureSampler, p , mip);
     return color.xyz != vec3(0);
 }
 
-bool InBounds(ivec3 p){
-    return min(p,textureDims) == max(p,vec3(0));
-}
-
-
 void main()
 { 
+    int currentMipLevel = mipLevel;
+
 	ivec2 id = ivec2(gl_GlobalInvocationID.xy);
 
     //clear the pixeel
     imageStore(screenTexture,id,vec4(0));
 
     //Calculate ray direction
-	vec2 uv = (vec2(id) - vec2(dimensions) * .5) / float(dimensions.y);
-    vec3 rd = CalcRayDirection(uv);
-
+    vec2 screenPos = (vec2(id) / vec2(dimensions)) * 2.0 - 1.0;
+	vec3 cameraPlaneU = cameraRight;
+	vec3 cameraPlaneV = cameraUp * vec2(dimensions).y / vec2(dimensions).x;
+    vec3 rd = cameraForward + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV;
 
     float near; // t at which we first enter the voxel bound
     float far;  // t at which we first exit the voxel bound
-    vec3 minb = position;
-    vec3 maxb = position + (vec3(1));
+    vec3 minb = vec3(0);
+    vec3 maxb = vec3(1);
    
-
+  
     //Check if we intersect the area taken by the texture
     if(!intersectAABB(ro,rd,minb,maxb,near,far))return;
 
@@ -83,64 +78,38 @@ void main()
 
     ivec3 steps = CalculateDirectionSteps(rd);
 
-    vec3 pointOfEntry = ro + rd * near;
-    vec3 pointOfExit = ro + rd * far;
+    vec3 pointOfEntry = (ro + rd * near)/float(voxelSize[currentMipLevel]);
 
     //Removes Circular Artifacts
-    pointOfEntry = max(pointOfEntry,minb);
-    pointOfExit = min(pointOfExit,maxb);
+    pointOfEntry = max(pointOfEntry,ivec3(0));
+   
+    //Round To Voxel
+    ivec3 CurrentVoxel = ivec3(floor(pointOfEntry + 0.0));
 
-    //convert points relative to the bounds
-    pointOfEntry -= position;
-    pointOfExit -= position;
+    vec3 deltaDist = abs(vec3(length(rd)) / rd);
+	
+	ivec3 rayStep = ivec3(sign(rd));
 
-    ivec3 CurrentVoxel = RoundToVoxel(pointOfEntry);
-    ivec3 ExitVoxel =  RoundToVoxel(pointOfExit);
+	vec3 sideDist = (sign(rd) * (vec3(CurrentVoxel) - pointOfEntry) + (sign(rd) * 0.5) + 0.5) * deltaDist; 
 
-    //Max amount of time taken to cross a boundary in each direction
-    vec3 nextBoundary = (CurrentVoxel + vec3(steps)) * voxelSize;
+    bvec3 mask;
+    vec4 color = vec4(1);
 
-    vec3 tmax = ((nextBoundary - pointOfEntry))/rd;
-    vec3 tdelta = vec3(voxelSize) / (rd * steps);
-
-    CurrentVoxel.x -= int(CurrentVoxel[0]!=ExitVoxel[0] && steps.x == -1);
-    CurrentVoxel.y -= int(CurrentVoxel[1]!=ExitVoxel[1] && steps.y == -1);
-    CurrentVoxel.z -= int(CurrentVoxel[2]!=ExitVoxel[2] && steps.z == -1);
-
-    vec3 n = vec3(0);
-    vec4 color = vec4(0);
+    //while current point is within the bounds
+    while(min(CurrentVoxel,vec3(textureDims[currentMipLevel])) == max(CurrentVoxel,vec3(0))) {
 
 
-
-    while(InBounds(CurrentVoxel)) {
-    
-    if(SampleColorAtVoxel(CurrentVoxel, color)){
-        color -= .2;
-        color.xyz += vec3(dot(n,vec3(0,-1,0))) * .2;
+    //Sample The color of a voxel at a position
+    if(SampleColorAtVoxel(CurrentVoxel,currentMipLevel, color)){
+        color -= .4;
         imageStore(screenTexture,id,color);
         return;
     }
-
-    if (tmax.x < tmax.y) {
-      if (tmax.x < tmax.z) {
-        CurrentVoxel[0] += steps.x;
-        tmax.x += tdelta.x;
-        n = vec3(steps.x,0,0);
-      } else {
-        CurrentVoxel[2] += steps.z;
-        tmax.z += tdelta.z;
-        n = vec3(0,0,steps.z);
-      }
-    } else {
-      if (tmax.y < tmax.z) {
-        CurrentVoxel[1] += steps.y;
-        tmax.y += tdelta.y;
-        n = vec3(0,steps.y,0);
-      } else {
-        CurrentVoxel[2] += steps.z;
-        tmax.z += tdelta.z;
-        n = vec3(0,0,steps.z);
-      }
-    }
+   
+   //Itterate and move to the next voxel
+    mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
+    sideDist += vec3(mask) * deltaDist;
+	CurrentVoxel += ivec3(vec3(mask)) * rayStep;
   }
+
 }

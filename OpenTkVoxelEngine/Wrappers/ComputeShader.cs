@@ -124,6 +124,12 @@ namespace OpenTkVoxelEngine
             GL.Uniform1(location, value);
         }
 
+        public void SetFloatA(string name, float[] values)
+        {
+            int location = GL.GetUniformLocation(_handle, name);
+            GL.Uniform1(location, values.Length,values);
+        }
+
         public void SetBool(string name, bool value)
         {
             int location = GL.GetUniformLocation(_handle, name);
@@ -140,6 +146,15 @@ namespace OpenTkVoxelEngine
         {
             int location = GL.GetUniformLocation(_handle, name);
             GL.Uniform3(location, value);
+        }
+
+        public void SetIVec3A(string name, Vector3i[] value)
+        {
+            for (int i = 0; i < value.Length; i++)
+            {
+                int location = GL.GetUniformLocation(_handle, name + "[" + i + "]");
+                GL.Uniform3(location, value[i]);
+            }
         }
 
         public void SetVec3(string name, Vector3 value)

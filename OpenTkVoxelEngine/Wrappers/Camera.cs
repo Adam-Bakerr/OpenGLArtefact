@@ -213,7 +213,7 @@ namespace OpenTkVoxelEngine
         //Handles the zooming
         public void OnMouseWheel(MouseWheelEventArgs e)
         {
-            _speed = Math.Clamp(_speed + e.OffsetY,1,_maxSpeed);
+            _speed = Math.Clamp(_speed + e.OffsetY,0.15f,_maxSpeed);
             
 
             _projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(_FOV), (float)_window.Size.X / (float)_window.Size.Y, _nearPlane, _farPlane);
