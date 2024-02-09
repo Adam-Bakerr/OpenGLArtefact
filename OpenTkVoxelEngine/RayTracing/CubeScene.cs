@@ -75,8 +75,8 @@ namespace OpenTkVoxelEngine.Scenes
 
 
         public int _voxelDimensions = 128;
-        public int _mipLevel = 0;
-        public float _blockSize = 1.0f;
+        public int _mipLevel = 4;
+        public float _blockSize = 16.0f;
         float time = 0f;
 
         int _vbo;
