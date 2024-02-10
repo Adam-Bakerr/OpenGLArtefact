@@ -90,25 +90,30 @@ void main()
     //Tmax
 	vec3 sideDist = (sign(rd) * (vec3(CurrentVoxel) - pointOfEntry) + (sign(rd) * 0.5) + 0.5) * deltaDist; 
 
-    bvec3 mask;
+    bvec3 mask = bvec3(1);
     vec4 color = vec4(1);
-    bool x = true,y = true,z = true;
-    int i = 0;
+
     //while current point is within the bounds
-    while(x && y && z) {
-    x = min(CurrentVoxel.x,textureDims[currentMipLevel]) == max(CurrentVoxel.x,0);
-    y = min(CurrentVoxel.y,textureDims[currentMipLevel]) == max(CurrentVoxel.y,0);
-    z = min(CurrentVoxel.z,textureDims[currentMipLevel]) == max(CurrentVoxel.z,0);
-    //Sample The color of a voxel at a position
-    if(SampleColorAtVoxel(CurrentVoxel,currentMipLevel, color)){
-        imageStore(screenTexture,id,color);
-        return;
+    while(
+    min(CurrentVoxel,ivec3(textureDims[currentMipLevel])) == max(CurrentVoxel,ivec3(0))
+    && mask != bvec3(0)
+    ) {
+        
+       
+        //Check If Our Current Voxel Resides Within The Current Range Of Data
+
+        //Sample The color of a voxel at the voxel poition to determine if its solid
+        //This will be changed to better acompany pallettes
+        if(SampleColorAtVoxel(CurrentVoxel,currentMipLevel, color)){
+            imageStore(screenTexture,id,color * (dot(vec3(.1,-1,.2),-vec3(mask)) * .8) + .2);
+            return;
+        }
+       
+        //Itterate and move to the next voxel
+        mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
+        sideDist += vec3(mask) * deltaDist;
+	    CurrentVoxel += ivec3(vec3(mask)) * rayStep;
+
     }
-   
-   //Itterate and move to the next voxel
-    mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
-    sideDist += vec3(mask) * deltaDist;
-	CurrentVoxel += ivec3(vec3(mask)) * rayStep;
-  }
 
 }

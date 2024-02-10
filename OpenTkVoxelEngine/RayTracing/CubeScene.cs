@@ -74,8 +74,8 @@ namespace OpenTkVoxelEngine.Scenes
         };
 
 
-        public int _voxelDimensions = 128;
-        public int _mipLevel = 4;
+        public int _voxelDimensions = 256;
+        public int _mipLevel = 0;
         public float _blockSize = 16.0f;
         float time = 0f;
 
@@ -141,6 +141,8 @@ namespace OpenTkVoxelEngine.Scenes
 
             //Set MVP matrix of shader
             UpdateDrawShader();
+            
+            _vao.Bind();
 
             GL.BindTexture(TextureTarget.Texture2D, _screenTexture);
           

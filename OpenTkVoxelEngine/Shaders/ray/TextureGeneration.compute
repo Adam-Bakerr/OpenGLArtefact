@@ -14,9 +14,10 @@ void main()
 	if(id.x >= textureDims || id.y >= textureDims || id.z >= textureDims){
 		return;
 	}
-
 	bool isSolid =  distance(id,vec3(textureDims)/2.0) < (textureDims * textureDims) / 560f;
-	isSolid = true;
+	isSolid = isSolid || id.y == 0;
+	//isSolid = true;
+
 	vec4 color = vec4(
 		isSolid ? id.x/float(textureDims) : 0, //r
 		isSolid ? id.y/float(textureDims) : 0, //g
