@@ -7,6 +7,20 @@ layout(Rgba32f, binding = 0) uniform image3D voxelTexture;
 
 uniform int textureDims;
 
+float distSquared( vec3 A, vec3 B )
+{
+
+    vec3 C = A - B;
+    return dot( C, C );
+
+}
+
+float sdSphere( vec3 p, vec3 c,  float s )
+{
+  return length(p - c)-s;
+}
+
+
 void main()
 { 
 	ivec3 id = ivec3(gl_GlobalInvocationID.xyz);
@@ -14,9 +28,9 @@ void main()
 	if(id.x >= textureDims || id.y >= textureDims || id.z >= textureDims){
 		return;
 	}
-	bool isSolid =  distance(id,vec3(textureDims)/2.0) < (textureDims * textureDims) / 560f;
-	isSolid = isSolid || id.y == 0;
-	//isSolid = true;
+
+	bool isSolid =  sdSphere(id,vec3(textureDims/2.0),textureDims/2.0) < .1f;
+
 
 	vec4 color = vec4(
 		isSolid ? id.x/float(textureDims) : 0, //r

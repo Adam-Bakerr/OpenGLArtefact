@@ -1,6 +1,6 @@
 #version 430
 //Define size of local workgroup
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 layout(Rgba32f, binding = 0) uniform image3D voxelTexture;
 layout(Rgba32f, binding = 1) uniform image3D voxelMip1;
@@ -15,76 +15,23 @@ void main()
 	ivec3 id = ivec3(gl_GlobalInvocationID.xyz);
 
 
-	vec4 color = vec4(0);
-	int numberofsamples = 0;
-	for(int x = 0 ; x < 2 ; x++){
-		for(int y = 0 ; y < 2 ; y++){
-			for(int z = 0 ; z < 2 ; z++){
-				vec4 sampled = imageLoad(voxelTexture,(id * 2) + ivec3(x,y,z));
-				if(sampled.a != 0){
+	vec4 voxelColor = imageLoad(voxelTexture,id);
+	if(voxelColor != vec4(0)){
+		ivec3 id1 = id / ivec3(2);
+		imageStore(voxelMip1,id1,voxelColor + imageLoad(voxelMip1,id1));
 
-				color += sampled;
-				numberofsamples++;
+		ivec3 id2 = id / ivec3(4);
+		imageStore(voxelMip2,id2,voxelColor + imageLoad(voxelMip2,id2));
 
-				}
-			}
-		}
+		ivec3 id3 = id / ivec3(8);
+		imageStore(voxelMip3,id3,voxelColor + imageLoad(voxelMip3,id3));
+
+		ivec3 id4 = id / ivec3(16);
+		imageStore(voxelMip4,id4,voxelColor + imageLoad(voxelMip4,id4));
+
 	}
-
-	imageStore(voxelMip1,id,max(color/float(numberofsamples),vec4(0)));
-	numberofsamples = 0;
-	color = vec4(0);
-
-	for(int x = 0 ; x < 4 ; x++){
-		for(int y = 0 ; y < 4 ; y++){
-			for(int z = 0 ; z < 4 ; z++){
-				vec4 sampled = imageLoad(voxelTexture,(id * 4) + ivec3(x,y,z));
-				if(sampled.a != 0){
-
-				color += sampled;
-				numberofsamples++;
-
-				}
-			}
-		}
-	}
-
-	imageStore(voxelMip2,id,max(color/float(numberofsamples),vec4(0)));
-	numberofsamples = 0;
-	color = vec4(0);
-
-		for(int x = 0 ; x < 8 ; x++){
-		for(int y = 0 ; y < 8 ; y++){
-			for(int z = 0 ; z < 8 ; z++){
-				vec4 sampled = imageLoad(voxelTexture,(id * 8) + ivec3(x,y,z));
-				if(sampled.a != 0){
-
-				color += sampled;
-				numberofsamples++;
-
-				}
-			}
-		}
-	}
-
-	imageStore(voxelMip3,id,max(color/float(numberofsamples),vec4(0)));
-	numberofsamples = 0;
-	color = vec4(0);
-		for(int x = 0 ; x < 16 ; x++){
-		for(int y = 0 ; y < 16 ; y++){
-			for(int z = 0 ; z < 16 ; z++){
-				vec4 sampled = imageLoad(voxelTexture,(id * 16) + ivec3(x,y,z));
-				if(sampled.a != 0){
-
-				color += sampled;
-				numberofsamples++;
-
-				}
-			}
-		}
-	}
-
-	imageStore(voxelMip4,id,max(color/float(numberofsamples),vec4(0)));
+	
+	
 
 
 

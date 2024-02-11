@@ -76,7 +76,7 @@ namespace OpenTkVoxelEngine.Scenes
 
         public int _voxelDimensions = 256;
         public int _mipLevel = 0;
-        public float _blockSize = 16.0f;
+        public float _blockSize = 2;
         float time = 0f;
 
         int _vbo;
@@ -88,12 +88,14 @@ namespace OpenTkVoxelEngine.Scenes
         Shader _shader;
         ComputeShader _tracer;
         ComputeShader _mipMapGenerator;
+        ComputeShader _mipGammaCorrector;
         ComputeShader _textureGenerator;
         string _assemblyName = "OpenTkVoxelEngine.Shaders.ray";
         string _fragName = "shader.frag";
         string _vertName = "shader.vert";
         string _tracerName = "VoxelRaytrace.compute";
         string _mipGeneratorName = "MipMap.compute";
+        string _mipGammaCorrectorName = "MipMapGammaPass.compute";
         string _textureCreationName = "TextureGeneration.compute";
 
         //Camera
@@ -166,6 +168,7 @@ namespace OpenTkVoxelEngine.Scenes
             if(_demoTexture != 0) GL.DeleteTexture(_demoTexture);
             if(_screenTexture != 0) GL.DeleteTexture(_screenTexture);
             if(_mipMapGenerator != null) _mipMapGenerator.Dispose();
+            if(_mipGammaCorrector != null) _mipGammaCorrector.Dispose();
             if(_shader != null) _shader.Dispose();
             if(_tracer != null) _tracer.Dispose();
             if(_textureGenerator != null) _textureGenerator.Dispose();
@@ -257,7 +260,25 @@ namespace OpenTkVoxelEngine.Scenes
             _mipMapGenerator.SetInt("voxelMip4",4);
 
 
-            GL.DispatchCompute(_voxelDimensions/2, _voxelDimensions/2, _voxelDimensions/2);
+            GL.DispatchCompute((int)MathF.Ceiling(_voxelDimensions / 8.0f), (int)MathF.Ceiling(_voxelDimensions / 8.0f), (int)MathF.Ceiling(_voxelDimensions / 8.0f));
+            GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
+
+            _mipGammaCorrector.use();
+            GL.BindTexture(TextureTarget.Texture3D, _demoTexture);
+
+            GL.BindImageTexture(1, _demoTexture, 1, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+            GL.BindImageTexture(2, _demoTexture, 2, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+            GL.BindImageTexture(3, _demoTexture, 3, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+            GL.BindImageTexture(4, _demoTexture, 4, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+
+
+            _mipGammaCorrector.SetInt("voxelMip1", 1);
+            _mipGammaCorrector.SetInt("voxelMip2", 2);
+            _mipGammaCorrector.SetInt("voxelMip3", 3);
+            _mipGammaCorrector.SetInt("voxelMip4", 4);
+
+
+            GL.DispatchCompute(_voxelDimensions/16, _voxelDimensions/16, _voxelDimensions/16);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
 
         }
@@ -273,6 +294,9 @@ namespace OpenTkVoxelEngine.Scenes
             _mipMapGenerator = new ComputeShader(_assemblyName, _mipGeneratorName);
             UpdateMipMapGeneratorShader();
 
+            _mipGammaCorrector = new ComputeShader(_assemblyName, _mipGammaCorrectorName);
+            UpdateGammaCorrectorShader();
+
             _textureGenerator = new ComputeShader(_assemblyName, _textureCreationName);
             UpdateTextureGenerationShader();
         }
@@ -286,6 +310,11 @@ namespace OpenTkVoxelEngine.Scenes
         {
             _mipMapGenerator.use();
             _mipMapGenerator.SetInt("textureDims", _voxelDimensions);
+        }
+
+        public void UpdateGammaCorrectorShader()
+        {
+            _mipGammaCorrector.use();
         }
 
         public void UpdateTextureGenerationShader()
