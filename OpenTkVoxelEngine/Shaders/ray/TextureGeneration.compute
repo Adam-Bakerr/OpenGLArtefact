@@ -29,7 +29,7 @@ void main()
 		return;
 	}
 
-	bool isSolid =  sdSphere(id,vec3(textureDims/2.0),textureDims/2.0) < .1f;
+	bool isSolid =  sdSphere(id,vec3(textureDims/2.0),textureDims/3.0) < .1f;
 
 
 	vec4 color = vec4(

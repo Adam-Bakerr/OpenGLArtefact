@@ -9,12 +9,14 @@ using System.Text;
 using System.Threading.Tasks;
 using Dear_ImGui_Sample;
 using ImGuiNET;
+using LearnOpenTK.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using static System.Formats.Asn1.AsnWriter;
+using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using static OpenTkVoxelEngine.HydraulicErosion;
 using GL = OpenTK.Graphics.OpenGL4.GL;
@@ -25,64 +27,13 @@ namespace OpenTkVoxelEngine.Scenes
     internal class CubeScene : IScene
     {
 
-
-
-        private readonly float[] _vertices =
-        {
-            // Position
-            0, 0, 0, 0.0f,0.0f,-1.0f,// Front face
-            1f, 0, 0, 0.0f,0.0f,-1.0f,
-            1f,  1f, 0, 0.0f,0.0f,-1.0f,
-            1f,  1f, 0, 0.0f,0.0f,-1.0f,
-            0,  1f, 0, 0.0f,0.0f,-1.0f,
-            0, 0, 0, 0.0f,0.0f,-1.0f,
-
-            0, 0,  1f, 0.0f,0.0f,1.0f, // Back face
-            1f, 0,  1f, 0.0f,0.0f,1.0f,
-            1f,  1f,  1f, 0.0f,0.0f,1.0f,
-            1f,  1f,  1f, 0.0f,0.0f,1.0f,
-            0,  1f,  1f, 0.0f,0.0f,1.0f,
-            0, 0,  1f, 0.0f,0.0f,1.0f,
-
-            0,  1f,  1f, -1.0f,0.0f,0.0f,// Left face
-            0,  1f, 0, -1.0f,0.0f,0.0f,
-            0, 0, 0, -1.0f,0.0f,0.0f,
-            0, 0, 0, -1.0f,0.0f,0.0f,
-            0, 0,  1f, -1.0f,0.0f,0.0f,
-            0,  1f,  1f, -1.0f,0.0f,0.0f,
-
-            1f,  1f,  1f, 1.0f,0.0f,0.0f, // Right face
-            1f,  1f, 0, 1.0f,0.0f,0.0f,
-            1f, 0, 0, 1.0f,0.0f,0.0f,
-            1f, 0, 0, 1.0f,0.0f,0.0f,
-            1f, 0,  1f, 1.0f,0.0f,0.0f,
-            1f,  1f,  1f, 1.0f,0.0f,0.0f,
-
-            0, 0, 0, 0.0f,-1.0f,0.0f, // Bottom face
-            1f, 0, 0, 0.0f,-1.0f,0.0f,
-            1f, 0,  1f, 0.0f,-1.0f,0.0f,
-            1f, 0,  1f, 0.0f,-1.0f,0.0f,
-            0, 0,  1f, 0.0f,-1.0f,0.0f,
-            0, 0, 0, 0.0f,-1.0f,0.0f,
-
-            0,  1f, 0, 0.0f,1.0f,0.0f, // Top face
-            1f,  1f, 0, 0.0f,1.0f,0.0f,
-            1f,  1f,  1f, 0.0f,1.0f,0.0f,
-            1f,  1f,  1f, 0.0f,1.0f,0.0f,
-            0,  1f,  1f, 0.0f,1.0f,0.0f,
-            0,  1f, 0, 0.0f,1.0f,0.0f
-        };
-
-
         public int _voxelDimensions = 256;
-        public int _mipLevel = 0;
+        public int _mipLevel = 4;
         public float _blockSize = 2;
         float time = 0f;
 
-        int _vbo;
+        //Buffer Objects
         VAO _vao;
-
-
 
         //Shaders
         Shader _shader;
@@ -90,6 +41,8 @@ namespace OpenTkVoxelEngine.Scenes
         ComputeShader _mipMapGenerator;
         ComputeShader _mipGammaCorrector;
         ComputeShader _textureGenerator;
+
+        //Shader Locations In Assembly
         string _assemblyName = "OpenTkVoxelEngine.Shaders.ray";
         string _fragName = "shader.frag";
         string _vertName = "shader.vert";
@@ -104,9 +57,11 @@ namespace OpenTkVoxelEngine.Scenes
         //3D Texture
         int _screenTexture;
         int _demoTexture;
+        Texture test;
 
         public CubeScene(GameWindow window, ImGuiController controller) : base(window, controller)
         {
+
         }
 
         public override void OnUpdateFrame(FrameEventArgs args)
@@ -133,6 +88,7 @@ namespace OpenTkVoxelEngine.Scenes
 
             
             _tracer.SetInt("voxelTextureSampler",1);
+            _tracer.SetFloat("time",time);
 
             GL.ActiveTexture(TextureUnit.Texture1);
             GL.BindTexture(TextureTarget.Texture3D, _demoTexture);
@@ -178,7 +134,7 @@ namespace OpenTkVoxelEngine.Scenes
         {
             GL.Enable(EnableCap.DepthTest);
             GL.DepthFunc(DepthFunction.Lequal);
-                
+
             _camera = new Camera(_window, 0.1f, 1000f,new Vector3(.5f, .5f,-.5f));
             CreateShaders();
             CreateBuffers();
@@ -187,10 +143,8 @@ namespace OpenTkVoxelEngine.Scenes
             UpdateTextureDimensions();
         }
 
-        Random rand;
         public void CreateTexture()
         {
-            rand = new Random();
             
 
             _demoTexture = GL.GenTexture();

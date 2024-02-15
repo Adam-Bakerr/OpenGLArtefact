@@ -4,12 +4,15 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(rgba32f, binding = 0) uniform image2D screenTexture;
 layout(rgba32f, binding = 1) uniform image3D voxelTexture;
+layout(rgba32f, binding = 2) uniform image2D blockTexture;
+
 uniform sampler3D voxelTextureSampler;
 
 
 uniform vec2 dimensions;
 uniform int textureDims[5];
 uniform float chunkSize;
+uniform float time;
 
 uniform vec3 cameraForward;
 uniform vec3 cameraRight;
@@ -37,11 +40,46 @@ bool intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax , inout
     return tNear <= tFar;
 };
 
-
-
 bool SampleColorAtVoxel(ivec3 p, int mip, out vec4 color){
     color = texelFetch(voxelTextureSampler, p , mip);
     return color.xyz != vec3(0);
+}
+
+vec2 MaxOfThree(vec3 p){
+    return vec2(max(p.x,p.z),p.y);
+}
+
+vec3 lightpos = vec3(50);
+
+
+float TraceShadow(vec3 rayhitpoint, int currentMip){
+    vec3 rd = normalize((vec3(sin(time) * 25.0,15,sin(time) * 25.0)) - rayhitpoint);
+    vec3 deltaDist = abs(vec3(length(rd)) / rd);
+    ivec3 CurrentVoxel = ivec3(floor(rayhitpoint + 0.0));
+    ivec3 rayStep = ivec3(sign(rd));
+
+    //Distance To Next Axis Crossing
+	vec3 sideDist = (sign(rd) * (vec3(CurrentVoxel) - rayhitpoint) + (sign(rd) * 0.5) + 0.5) * deltaDist; 
+
+    bvec3 mask = bvec3(sign(rd));
+    vec4 color = vec4(1);
+
+
+    //while current point is within the bounds
+    while(
+    min(CurrentVoxel,ivec3(textureDims[currentMip])) == max(CurrentVoxel,ivec3(0))
+    && mask != bvec3(0)
+    ) {
+        //Itterate and move to the next voxel
+        mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
+        sideDist += vec3(mask) * deltaDist;
+	    CurrentVoxel += ivec3(mask) * rayStep;
+
+        if(SampleColorAtVoxel(CurrentVoxel,currentMip, color)){
+            return .1;
+        }
+    }
+    return 1.0;
 }
 
 void main()
@@ -78,18 +116,20 @@ void main()
 	ivec3 rayStep = ivec3(sign(rd));
 
     //Removes Circular Artifacts caused by the floor function by biasing the ray into the intersection slightly
-    pointOfEntry += rayStep * rd * 0.001;
+    pointOfEntry = min(pointOfEntry,(maxb / float(voxelSize[currentMipLevel])) - vec3(.001));
+    pointOfEntry = max(pointOfEntry,(minb / float(voxelSize[currentMipLevel])) + vec3(.001));
 
     //Round To Voxel
     ivec3 CurrentVoxel = ivec3(floor(pointOfEntry + 0.0));
     
     vec3 deltaDist = abs(vec3(length(rd)) / rd);
 
-    //Tmax
+    //Distance To Next Axis Crossing
 	vec3 sideDist = (sign(rd) * (vec3(CurrentVoxel) - pointOfEntry) + (sign(rd) * 0.5) + 0.5) * deltaDist; 
 
-    bvec3 mask = bvec3(rayStep);
+    bvec3 mask = bvec3(sign(rd));
     vec4 color = vec4(1);
+
 
     //while current point is within the bounds
     while(
@@ -100,15 +140,22 @@ void main()
         //This will be changed to better acompany pallettes
 
         if(SampleColorAtVoxel(CurrentVoxel,currentMipLevel, color)){
-            imageStore(screenTexture,id,color * (dot(vec3(.1,-1,.2),-vec3(mask)) * .8) + .2);
+            
+            //Calc Shadows
+            float d = length(vec3(mask) * (sideDist - deltaDist)) / length(rd);
+            vec3 point = (pointOfEntry + (d * (rd * .99))) ;
+            
+            imageStore(screenTexture,id,color * TraceShadow(point,currentMipLevel));
             return;
         }
-       
+
+
+
+
         //Itterate and move to the next voxel
         mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
         sideDist += vec3(mask) * deltaDist;
-	    CurrentVoxel += ivec3(vec3(mask)) * rayStep;
-
+	    CurrentVoxel += ivec3(mask) * rayStep;
     }
 
 }
