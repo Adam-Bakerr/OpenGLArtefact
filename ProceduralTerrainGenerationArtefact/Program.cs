@@ -1,6 +1,4 @@
-﻿
-using System.Numerics;
-using Dear_ImGui_Sample;
+﻿using Dear_ImGui_Sample;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -8,8 +6,6 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTkVoxelEngine;
-using OpenTkVoxelEngine.Scenes;
-using Buffer = OpenTK.Graphics.OpenGL4.Buffer;
 
 namespace Engine
 {
@@ -56,7 +52,7 @@ namespace Engine
         //Scenes
         static List<IScene> _scenes;
         static IScene ActiveScene;
-        int activeSceneIndex = 4;
+        int activeSceneIndex = 0;
         
         //Current polygon mode
         PolygonMode _polygonMode = PolygonMode.Fill;
@@ -92,8 +88,7 @@ namespace Engine
                 new HydraulicErosion(this, _controller),
                 new MarchingCubes(this, _controller),
                 new SurfaceNets(this,_controller),
-                new NoiseVisualization(this,_controller),
-                new CubeScene(this,_controller)
+                new NoiseVisualization(this,_controller)
             };
 
             ActiveScene = _scenes[activeSceneIndex];
