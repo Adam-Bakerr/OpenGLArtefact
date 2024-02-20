@@ -171,10 +171,8 @@ void main()
 	int index = GetIndex(id);
 
 
-	float value = ((fbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / max(float(id.y),.0001);
-	float caveValue = ((cfbm(vec3(id.x * resolution.x,id.y * resolution.y,id.z * resolution.z)) + 1.0) * .5) / max(float(id.y),.0001);
-	
-	
+	float value = fbm(id);
+
 	if(id.x == 0 || id.x == vertexCount.x - 1 || id.z == 0 || id.z == vertexCount.z - 1 || id.y == 0){
 	value = 0;
 	}
@@ -182,6 +180,6 @@ void main()
 		points[index] = f(id);
 		return;
 	}
-	points[index] = caveValue * value;
+	points[index] = value;
 	
 }

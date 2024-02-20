@@ -52,7 +52,7 @@ namespace OpenTkVoxelEngine
     }
 
 
-    internal class MarchingCubes : IScene
+    internal class ChunkedMarchingCubes : IScene
     {
         List<MCChunk> chunks = new List<MCChunk>();
         List<MCChunk> chunksToCreate = new List<MCChunk>();
@@ -66,7 +66,7 @@ namespace OpenTkVoxelEngine
         ComputeShader _marchCubesShader;
 
         //Shader Paths
-        string _assemblyPath = "OpenTkVoxelEngine.Shaders.MarchingCubes";
+        string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.MarchingCubes";
         string _vertexPath = "shader.vert";
         string _fragmentPath = "shader.frag";
         string _distanceFieldGenerationPath = "createDF.compute";
@@ -81,7 +81,7 @@ namespace OpenTkVoxelEngine
 
         //Variables
         Matrix4 _model = Matrix4.Identity;
-        Vector3i _dimensions = new Vector3i(16, 132, 16);
+        Vector3i _dimensions = new Vector3i(128, 132, 128);
         Vector3 _resolution = new Vector3(.125f);
         int _workGroupSize = 8;
         float _surfaceLevel = .5f;
@@ -102,7 +102,7 @@ namespace OpenTkVoxelEngine
 
 
 
-        public MarchingCubes(GameWindow window, ImGuiController controller) : base(window, controller)
+        public ChunkedMarchingCubes(GameWindow window, ImGuiController controller) : base(window, controller)
         {
 
         }
@@ -192,9 +192,8 @@ namespace OpenTkVoxelEngine
 
             _dfShader.use();
             _dfShader.SetVec3("chunkPosition", chunk.position);
-            Console.WriteLine(chunk.position);
             _dfShader.SetFloat("totalTime", _totalTime);
-            //_dfShader.SetBool("testSpheres", _drawTestSpheres);
+            _dfShader.SetBool("testSpheres", _drawTestSpheres);
 
             GL.DispatchCompute(dfx, dfy, dfz);
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);

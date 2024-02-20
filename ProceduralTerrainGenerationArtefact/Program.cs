@@ -6,6 +6,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTkVoxelEngine;
+using System.Reflection;
 
 namespace Engine
 {
@@ -43,8 +44,10 @@ namespace Engine
     public class Window : GameWindow{
         public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) : base(gameWindowSettings, nativeWindowSettings)
         {
-            
         }
+
+        
+
 
         //Imgui Controller
         ImGuiController _controller;
@@ -65,6 +68,7 @@ namespace Engine
         enum scenes
         {
             Erosion,
+            ChunkedMarchingCubes,
             MarchingCubes,
             SurfaceNets,
             NosieVisualization,
@@ -86,7 +90,8 @@ namespace Engine
             _scenes = new List<IScene>
             {
                 new HydraulicErosion(this, _controller),
-                new MarchingCubes(this, _controller),
+                new ChunkedMarchingCubes(this, _controller),
+                new NonChunkedMarchingCubes(this, _controller),
                 new SurfaceNets(this,_controller),
                 new NoiseVisualization(this,_controller)
             };

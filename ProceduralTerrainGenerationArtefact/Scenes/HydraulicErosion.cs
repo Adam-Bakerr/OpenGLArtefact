@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Drawing.Imaging;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ using Dear_ImGui_Sample;
 using Engine;
 using ImGuiNET;
 using OpenTK.Compute.OpenCL;
-using OpenTK.Graphics.ES20;
+using SixLabors.ImageSharp;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -37,6 +37,8 @@ using TextureTarget = OpenTK.Graphics.OpenGL4.TextureTarget;
 using TextureUnit = OpenTK.Graphics.OpenGL4.TextureUnit;
 using TextureWrapMode = OpenTK.Graphics.OpenGL4.TextureWrapMode;
 using VertexAttribPointerType = OpenTK.Graphics.OpenGL4.VertexAttribPointerType;
+using System.Runtime.InteropServices;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace OpenTkVoxelEngine
 {
@@ -103,7 +105,7 @@ namespace OpenTkVoxelEngine
         ComputeShader _postErosionPassTwo;
 
         //Shader paths located in the assembly
-        string _assemblyPath = "OpenTkVoxelEngine.Shaders.ErosionShaders";
+        string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.ErosionShaders";
         string _vertexPath = "Shaders/ErosionShaders/erosionVert.vert";
         string _fragmentPath = "Shaders/ErosionShaders/erosionFrag.frag";
         string _createVertexComputePath = "createVertcies.compute";
@@ -144,7 +146,7 @@ namespace OpenTkVoxelEngine
         public override void OnLoad()
         {
             //Set clear color and enable depth testing in opengl
-            GL.ClearColor(Color.Black);
+            GL.ClearColor(Color4.Black);
             GL.Enable(EnableCap.DepthTest);
 
             //Create the camera
@@ -172,6 +174,40 @@ namespace OpenTkVoxelEngine
 
         }
 
+        void SaveToTexture()
+        {
+            float[] heights = new float[VertexCount()];
+            int[] minmax = new int[4];
+
+            //Gets All Heights From heightmap buffer
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _hmbo);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _hmbo);
+            GL.GetBufferSubData(BufferTarget.ShaderStorageBuffer, IntPtr.Zero, VertexCount() * sizeof(float), heights);
+
+            //Gets minmax From info buffer
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _meshInfoBuffer);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _meshInfoBuffer);
+            GL.GetBufferSubData(BufferTarget.ShaderStorageBuffer, IntPtr.Zero, 4 * sizeof(int), minmax);
+
+            float min = minmax[0] / (float)_minMaxPrecisionFactor;
+            float max = minmax[1] / (float)_minMaxPrecisionFactor;
+
+            int width = _gridVertexCount.X; // assuming a width of 2
+            int height = heights.Length / width; // calculate the height based on the width
+
+            using (Image<Rgba32> image = new Image<Rgba32>(width, height))
+            {
+                for (int i = 0; i < heights.Length; i++)
+                {
+                    float value = ((heights[i] - min) / (max - min)) * 255.0f;
+                    Rgba32 color = new Rgba32((byte)value, (byte)value, (byte)value);
+                    image[i % width, i / width] = color;
+                }
+
+                image.Save("newoutput.png");
+            }
+        }
+
         public override void OnRenderFrame(FrameEventArgs args)
         {
             //Time The Amount of time all computes take to run
@@ -179,7 +215,7 @@ namespace OpenTkVoxelEngine
 
 
             //Tell openGL to clear the color buffer and depth buffer
-            GL.ClearColor(Color.Black);
+            GL.ClearColor(Color4.Black);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             totalTime += (float)args.Time;
             LightPos = new Vector3(0, 5f + (float)Math.Sin(totalTime) * 5f, 0f);
@@ -453,6 +489,9 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _hmbo);
             GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, _hmbo);
 
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _meshInfoBuffer);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 1, _meshInfoBuffer);
+
             _fallOffApplicationShader.use();
 
             GL.DispatchCompute((int)MathF.Ceiling(_gridVertexCount.X / _workGroupSize), (int)MathF.Ceiling(_gridVertexCount.Y / _workGroupSize), 1);
@@ -498,6 +537,8 @@ namespace OpenTkVoxelEngine
             GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
             ////////////////////////////////////////////////////////////////////////
+
+
         }
 
         public void InitErodeShader()
@@ -767,6 +808,7 @@ namespace OpenTkVoxelEngine
             ImGui.Spacing();
             ImGui.Text("Erosion Settings");
             ImGui.Checkbox("Toggle Erosion Simulation", ref _shouldErode);
+            if(ImGui.Button("Save Heightmap To File"))SaveToTexture();
             ImGui.SameLine();
             if (ImGui.Button("Post Erosion Pass")) PostErosionPass();
             if (ImGui.DragInt("particle count", ref particleCount, 100)) UpdateErosionShader();
@@ -885,6 +927,7 @@ namespace OpenTkVoxelEngine
             _fallOffApplicationShader.SetFloat("lacunicity", _falloffNoiseVariables.lacunicity);
             _fallOffApplicationShader.SetFloat("jitter", _fallOffJitter);
             _fallOffApplicationShader.SetVec2("resolution", Resolution());
+            _fallOffApplicationShader.SetInt("minMaxPrecisionFactor", _minMaxPrecisionFactor);
             //Update the mesh when a noise variable is changed
             UpdateMesh();
         }

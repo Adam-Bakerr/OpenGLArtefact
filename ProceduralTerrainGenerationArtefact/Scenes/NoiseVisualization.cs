@@ -27,7 +27,7 @@ namespace OpenTkVoxelEngine
         VAO _vao;
 
         Shader _shader;
-        string _assemblyPath = "OpenTkVoxelEngine.Shaders.NoiseVisualization";
+        string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.NoiseVisualization";
         string _vertexFileName = "shader.vert";
         string _fragmentFileName = "shader.frag";
         float _time;
