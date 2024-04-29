@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Shaders\MarchingCubes\createDFnonchunked.compute" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ImGui.NET" Version="1.90.0.1" />
     <PackageReference Include="OpenTK" Version="4.8.2" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.2" />

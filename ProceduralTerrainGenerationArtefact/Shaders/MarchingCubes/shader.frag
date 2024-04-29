@@ -46,6 +46,6 @@ void main()
     diffuse   *= attenuation;
     specular *= attenuation;   
         
-    vec3 result = (ambient + diffuse + specular) * color.xyz;
+    vec3 result = max((ambient + diffuse + specular),.2) * color.xyz;
     FragColor = vec4(result,1);
 }

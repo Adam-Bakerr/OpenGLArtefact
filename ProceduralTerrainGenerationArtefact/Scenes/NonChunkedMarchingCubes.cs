@@ -34,7 +34,7 @@ namespace OpenTkVoxelEngine
         string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.MarchingCubes";
         string _vertexPath = "shader.vert";
         string _fragmentPath = "shader.frag";
-        string _distanceFieldGenerationPath = "createDF.compute";
+        string _distanceFieldGenerationPath = "createDFnonchunked.compute";
         string _marchCubesShaderPath = "MarchCubesShader.compute";
 
         //Buffers
@@ -51,6 +51,8 @@ namespace OpenTkVoxelEngine
         float _surfaceLevel = .5f;
         float _grassBlendAmount = .875f;
         float _grassSlopeThreshold = .15f;
+        float _totalTime = 0;
+        bool _testSpheres = false;
 
         uint vertexCounterValue;
 
@@ -192,6 +194,7 @@ namespace OpenTkVoxelEngine
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
             GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer, 0, sizeof(uint), ref vertexCounterValue);
+            Console.WriteLine(vertexCounterValue);
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
 
 
@@ -227,8 +230,10 @@ namespace OpenTkVoxelEngine
         public void UpdateDFShader()
         {
             _dfShader.use();
+            _dfShader.SetBool("testSpheres", _testSpheres);
             _dfShader.SetVec3("resolution", _resolution);
             _dfShader.SetIVec3("vertexCount", _dimensions);
+            _dfShader.SetFloat("totalTime", _totalTime);
             _dfShader.SetInt("baseHeightmap.seed", _heightMapNoiseVariables.seed);
             _dfShader.SetInt("baseHeightmap.NumLayers", _heightMapNoiseVariables.NumLayers);
             _dfShader.SetVec3("baseHeightmap.centre", _heightMapNoiseVariables.centre);
@@ -260,6 +265,9 @@ namespace OpenTkVoxelEngine
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
+            //_totalTime += (float)args.Time;
+
+            if(_testSpheres)OnDFUpdate();
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -348,6 +356,7 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("IsoLevel", ref _surfaceLevel, .025f, 0, 1)) OnDFUpdate();
             if (ImGui.DragFloat("Grass Slope Threshold", ref _grassSlopeThreshold, .025f, 0, 1)) OnDFUpdate();
             if (ImGui.DragFloat("Grass Blend Amount", ref _grassBlendAmount, .025f, 0, 1)) OnDFUpdate();
+            if (ImGui.Checkbox("Test Spheres", ref _testSpheres)) OnDFUpdate();
             ImGui.End();
 
             _controller.Render();

@@ -431,26 +431,13 @@ void main()
         float grassBlendHeight = _GrassSlopeThreshold * (1-_GrassBlendAmount);
         float grassWeight = 1-clamp((slope-grassBlendHeight)/(_GrassSlopeThreshold-grassBlendHeight),0,1);
         vec4 color = vec4(0,1,0,1) * grassWeight + vec4(.5,.3,.3,1) * (1-grassWeight);
-
+        color = mix(color,vec4(.7,.7,.7,1),abs(dot(normal.xyz,vec3(1,0,1))));
 
         uint counterValue = atomicCounterAdd(counter,3);
 
         AddVertex(p1,normal,color,counterValue,0);
         AddVertex(p2,normal,color,counterValue,1);
         AddVertex(p3,normal,color,counterValue,2);
-
-
-
-
-        //vertices[index * 15 + (i + 0)].Normal = vertices[index * 15 + (i + 1)].Normal = vertices[index * 15 + (i + 2)].Normal = normal;
-
-        //vertices[index * 15 + (i + 0)].Pos = p1;
-        //vertices[index * 15 + (i + 1)].Pos = p2;
-        //vertices[index * 15 + (i + 2)].Pos = p3;
-
-        //vertices[index * 15 + (i + 0)].Color = color;
-        //vertices[index * 15 + (i + 1)].Color = color;
-        //vertices[index * 15 + (i + 2)].Color = color;
     }
 
 

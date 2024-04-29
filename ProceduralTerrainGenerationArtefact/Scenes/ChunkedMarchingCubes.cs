@@ -81,10 +81,10 @@ namespace OpenTkVoxelEngine
 
         //Variables
         Matrix4 _model = Matrix4.Identity;
-        Vector3i _dimensions = new Vector3i(128, 132, 128);
+        Vector3i _dimensions = new Vector3i(128, 128, 128);
         Vector3 _resolution = new Vector3(.125f);
         int _workGroupSize = 8;
-        float _surfaceLevel = .5f;
+        float _surfaceLevel = .425f;
         float _grassBlendAmount = .875f;
         float _grassSlopeThreshold = .15f;
         float _totalTime = 0f;
@@ -261,7 +261,7 @@ namespace OpenTkVoxelEngine
 
             //Create our cube df data
             _dfShader = new ComputeShader(_assemblyPath, _distanceFieldGenerationPath);
-            _heightMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 19.935f, 0.005f, 0, 150, 1);
+            _heightMapNoiseVariables = new FBMNoiseVariables(0, 5, Vector3.Zero, -0.16f, .725f,3.060f, -10, 0.025f,-0.005f, 0, 150, 1);
             _caveMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .2f, 4.31f, 0, 19.935f, 0.105f, 0, 150, 1);
 
             UpdateDFShader();
@@ -343,7 +343,7 @@ namespace OpenTkVoxelEngine
                     //used to track the loadtime
                     Vector3 cameraPosition = _camera.Position();
                     Vector3 chunkPos = chunksToCreate[0].position;
-                    if (Vector3.Distance(new Vector3(chunkPos.X, cameraPosition.Y, chunkPos.Z), cameraPosition) < 64)
+                    if (Vector3.Distance(new Vector3(chunkPos.X, cameraPosition.Y, chunkPos.Z), cameraPosition) < 256)
                     {
                         RunShaders(chunksToCreate[0]);
                         chunksToCreate.RemoveAt(0);
@@ -358,7 +358,7 @@ namespace OpenTkVoxelEngine
             {
                 Vector3 cameraPosition = _camera.Position();
                 Vector3 chunkPos = chunks[i].position;
-                if (Vector3.Distance(new Vector3(chunkPos.X,cameraPosition.Y, chunkPos.Z), cameraPosition) > 64)
+                if (Vector3.Distance(new Vector3(chunkPos.X,cameraPosition.Y, chunkPos.Z), cameraPosition) > 256)
                 {
                     chunksToCreate.Add(new MCChunk(_dimensions,_resolution,chunkPos));
                     int bufferToDelete = chunks[i]._vbo;

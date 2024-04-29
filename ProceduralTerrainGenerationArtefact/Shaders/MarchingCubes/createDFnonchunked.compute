@@ -108,6 +108,22 @@ float cnoise(vec3 P){
   return 2.2 * n_xyz;
 }
 
+float lerp(float a, float b, float f)
+{
+    return a * (1.0 - f) + (b * f);
+}
+
+float smoothIntersectSDF(float distA, float distB, float k ) 
+{
+  float h = clamp(0.5 - 0.5*(distA-distB)/k, 0., 1.);
+  return mix(distA, distB, h ) + k*h*(1.-h); 
+}
+
+float f(vec3 Pos){
+	float s1 = 2.0/length(((vertexCount/2) + vec3(0,sin(totalTime) * 30,0)) - vec3(Pos));
+	//float s2 = 2.0/length(((vertexCount/2) - vec3(0,cos(totalTime) * 30,0)) - vec3(Pos));
+	return s1;
+}
 
 float fbm(vec3 x) {
 	float v = 0.0;
@@ -124,6 +140,22 @@ float fbm(vec3 x) {
 	return clamp(v * baseHeightmap.strength,baseHeightmap.minHeight,baseHeightmap.maxHeight);
 }
 
+float cfbm(vec3 x) {
+	float v = 0.0;
+	float a = baseCaveMap.baseRoughness;
+	float freq = baseCaveMap.scale;
+	for (int i = 0; i < baseCaveMap.NumLayers; ++i) {
+		float eval = a * cnoise((x*freq) + baseCaveMap.centre);
+		v += (eval + 1) * .5f;
+		x = x * baseCaveMap.roughness;
+		a *= baseCaveMap.persistence;
+		freq *= 2;
+	}
+	v = max(0, v - baseCaveMap.minValue);
+	return clamp(v * baseCaveMap.strength,baseCaveMap.minHeight,baseCaveMap.maxHeight);
+}
+
+
 void main()
 { 
 
@@ -133,14 +165,22 @@ void main()
 		return;
 	}
 
+	if(id.y > 128) return;
 
 	int index = id.y * vertexCount.x * vertexCount.z +  id.z * vertexCount.x + id.x;
 
-	//Initalise position vectors
-	//float value = fbm(id + (chunkPosition / resolution)) * (mix(0.0,1.0,.9 - (id.y / float(vertexCount.y))));
+	float value = fbm(id);
 
+	if(id.x == 0 || id.x == vertexCount.x - 1 || id.z == 0 || id.z == vertexCount.z - 1 || id.y == 0){
+	value = 0;
+	}
+
+	if(testSpheres){
+		points[index] = f(id);
+		return;
+	}
 	float groundLevel = id.y / (0.5 * vertexCount.y);
-	float value = groundLevel + max(.2,fbm(id + (chunkPosition / resolution)));
+	value = groundLevel + max(.2,fbm(id + (chunkPosition / resolution)));
 
 	points[index] = value;
 	

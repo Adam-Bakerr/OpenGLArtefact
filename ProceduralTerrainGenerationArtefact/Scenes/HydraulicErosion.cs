@@ -46,7 +46,7 @@ namespace OpenTkVoxelEngine
     {
 
         //Grid Definitions
-        Vector2i _gridVertexCount = new Vector2i(512, 512);
+        Vector2i _gridVertexCount = new Vector2i(2048, 2048);
         Vector2 _gridDimensions = new Vector2(25, 25);
         Vector2 Resolution() => _gridDimensions / _gridVertexCount;
         int VertexCount() => _gridVertexCount.X * _gridVertexCount.Y;
@@ -57,7 +57,7 @@ namespace OpenTkVoxelEngine
         int particleCount = 5000;
         int sqrtParticle;
         int currentParticleCount = 1;
-        public int erosionBrushRadius = 5;
+        public int erosionBrushRadius = 9;
         public int maxLifetime = 200;
         public float sedimentCapacityFactor = 9;
         public float minSedimentCapacity = .50f;

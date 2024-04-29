@@ -50,7 +50,7 @@ namespace OpenTkVoxelEngine
         int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        Vector3i _dimensions = new Vector3i(128, 128, 128);
+        Vector3i _dimensions = new Vector3i(32, 32, 32);
         Vector3 _resolution = new Vector3(.1f);
         int _workGroupSize = 8;
         float _surfaceLevel = .5f;
@@ -204,6 +204,7 @@ namespace OpenTkVoxelEngine
 
             //Get Counter Data To Reduce The Amount Of Verticies Drawn My a order of magnitude 
             GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer,0,sizeof(uint),ref vertexCounterValue);
+            Console.WriteLine(vertexCounterValue);
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
 
 
@@ -291,7 +292,7 @@ namespace OpenTkVoxelEngine
         float _totalTime = 0;
         public override void OnRenderFrame(FrameEventArgs args)
         {
-            _totalTime += (float)args.Time;
+            if (_window.IsKeyDown(Keys.End)) _totalTime += (float)args.Time;
             OnDFUpdate();
 
 
