@@ -1,25 +1,18 @@
 ﻿using Engine;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Desktop;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using OpenTkVoxelEngine;
-using System.Reflection.Metadata;
-using System.Runtime.Remoting;
 
 namespace OpenTkVoxelEngine
 {
-    class Shader
+    internal class Shader
     {
-        int _handle;
+        private int _handle;
 
-        Dictionary<string,int> _uniformLocations = new Dictionary<string,int>();
+        private Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
 
         public Shader(string vertexPath, string fragmentPath)
         {
             if (vertexPath == "" || fragmentPath == "") return;
-
 
             //Read Shaders To Strings
             string vertexSource = File.ReadAllText(vertexPath);
@@ -27,7 +20,7 @@ namespace OpenTkVoxelEngine
 
             //Create shaders from source
             var vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertexShader,vertexSource);
+            GL.ShaderSource(vertexShader, vertexSource);
 
             var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
             GL.ShaderSource(fragmentShader, fragmentSource);
@@ -36,8 +29,8 @@ namespace OpenTkVoxelEngine
             GL.CompileShader(vertexShader);
 
             //Get error status
-            GL.GetShader(vertexShader,ShaderParameter.CompileStatus,out int vertexStatus);
-            
+            GL.GetShader(vertexShader, ShaderParameter.CompileStatus, out int vertexStatus);
+
             //If it has failed
             if (vertexStatus == 0)
             {
@@ -55,33 +48,28 @@ namespace OpenTkVoxelEngine
             if (fragStatus == 0)
             {
                 string infoLog = GL.GetShaderInfoLog(fragmentShader);
-                Console.WriteLine("Fragment compile error"+infoLog);
+                Console.WriteLine("Fragment compile error" + infoLog);
             }
-
-
 
             //Create shader handle
 
             _handle = GL.CreateProgram();
 
             //Attached the created shaders to the handle
-            GL.AttachShader(_handle,vertexShader);
+            GL.AttachShader(_handle, vertexShader);
             GL.AttachShader(_handle, fragmentShader);
-
 
             //Link the shader handle
             GL.LinkProgram(_handle);
 
             //Check for errors with the linking process
-            GL.GetProgram(_handle,GetProgramParameterName.LinkStatus,out int linkStatus);
+            GL.GetProgram(_handle, GetProgramParameterName.LinkStatus, out int linkStatus);
 
             if (linkStatus == 0)
             {
                 string infoLog = GL.GetProgramInfoLog(_handle);
                 Console.WriteLine("Shader Link Error: " + infoLog);
             }
-
-
 
             // Get all unifroms from the shader
             GL.GetProgram(_handle, GetProgramParameterName.ActiveUniforms, out var numberOfUniforms);
@@ -102,29 +90,27 @@ namespace OpenTkVoxelEngine
                 _uniformLocations.Add(key, location);
             }
 
-
             //Do Some cleanup
-            GL.DetachShader(_handle,vertexShader);
-            GL.DetachShader(_handle,fragmentShader);
+            GL.DetachShader(_handle, vertexShader);
+            GL.DetachShader(_handle, fragmentShader);
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
-
         }
 
-        public Shader(string AssemblyPath,string vertexFileName, string fragmentFileName)
+        public Shader(string AssemblyPath, string vertexFileName, string fragmentFileName)
         {
             if (AssemblyPath == "" || vertexFileName == "" || fragmentFileName == "") return;
 
             string vertexSource, fragmentSource;
 
             //Read From Assembly Shaders To Strings
-            using Stream strv = typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath +"."+ vertexFileName);
+            using Stream strv = typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath + "." + vertexFileName);
             using (StreamReader reader = new StreamReader(strv))
             {
                 vertexSource = reader.ReadToEnd();
             }
 
-            using Stream strf= typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath + "." + fragmentFileName);
+            using Stream strf = typeof(MainProgram).Assembly.GetManifestResourceStream(AssemblyPath + "." + fragmentFileName);
             using (StreamReader reader = new StreamReader(strf))
             {
                 fragmentSource = reader.ReadToEnd();
@@ -163,8 +149,6 @@ namespace OpenTkVoxelEngine
                 Console.WriteLine("Fragment compile error" + infoLog);
             }
 
-
-
             //Create shader handle
 
             _handle = GL.CreateProgram();
@@ -172,7 +156,6 @@ namespace OpenTkVoxelEngine
             //Attached the created shaders to the handle
             GL.AttachShader(_handle, vertexShader);
             GL.AttachShader(_handle, fragmentShader);
-
 
             //Link the shader handle
             GL.LinkProgram(_handle);
@@ -185,8 +168,6 @@ namespace OpenTkVoxelEngine
                 string infoLog = GL.GetProgramInfoLog(_handle);
                 Console.WriteLine("Shader Link Error: " + infoLog);
             }
-
-
 
             // Get all unifroms from the shader
             GL.GetProgram(_handle, GetProgramParameterName.ActiveUniforms, out var numberOfUniforms);
@@ -207,13 +188,11 @@ namespace OpenTkVoxelEngine
                 _uniformLocations.Add(key, location);
             }
 
-
             //Do Some cleanup
             GL.DetachShader(_handle, vertexShader);
             GL.DetachShader(_handle, fragmentShader);
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
-
         }
 
         public void Use()
@@ -226,6 +205,7 @@ namespace OpenTkVoxelEngine
             int location = GL.GetUniformLocation(_handle, name);
             GL.Uniform1(location, value);
         }
+
         public void SetUint(string name, uint value)
         {
             int location = GL.GetUniformLocation(_handle, name);
@@ -273,12 +253,12 @@ namespace OpenTkVoxelEngine
             int location = GL.GetUniformLocation(_handle, name);
             GL.Uniform2(location, value);
         }
+
         public void SetIVec2(string name, Vector2i value)
         {
             int location = GL.GetUniformLocation(_handle, name);
             GL.Uniform2(location, value);
         }
-
 
         public void SetMatrix4(string name, Matrix4 value)
         {
@@ -304,8 +284,8 @@ namespace OpenTkVoxelEngine
             return GL.GetAttribLocation(_handle, attribName);
         }
 
+        private bool disposedValue = false;
 
-        bool disposedValue = false;
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -318,7 +298,7 @@ namespace OpenTkVoxelEngine
 
         ~Shader()
         {
-            if(!disposedValue) Console.WriteLine("Shader Resource Leak, Handle: " + _handle);
+            if (!disposedValue) Console.WriteLine("Shader Resource Leak, Handle: " + _handle);
         }
 
         public void Dispose()

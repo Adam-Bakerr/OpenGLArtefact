@@ -1,41 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Runtime.Remoting;
-using System.Text;
-using System.Threading.Tasks;
-using Dear_ImGui_Sample;
+﻿using Dear_ImGui_Sample;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using static OpenTkVoxelEngine.HydraulicErosion;
 using GL = OpenTK.Graphics.OpenGL4.GL;
-using IntPtr = System.IntPtr;
 
 namespace OpenTkVoxelEngine
 {
     internal class NoiseVisualization : IScene
     {
-        Camera _camera;
+        private Camera _camera;
 
-        VAO _vao;
+        private VAO _vao;
 
-        Shader _shader;
-        string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.NoiseVisualization";
-        string _vertexFileName = "shader.vert";
-        string _fragmentFileName = "shader.frag";
-        float _time;
+        private Shader _shader;
+        private string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.NoiseVisualization";
+        private string _vertexFileName = "shader.vert";
+        private string _fragmentFileName = "shader.frag";
+        private float _time;
 
-        FBMNoiseVariables _noiseVariables;
-        float _jitter = 1f;
-        NoiseType currentNoiseType = NoiseType.PerlinFBM;
-        enum NoiseType
+        private FBMNoiseVariables _noiseVariables;
+        private float _jitter = 1f;
+        private NoiseType currentNoiseType = NoiseType.PerlinFBM;
+
+        private enum NoiseType
         {
             Perlin,
             PerlinFBM,
@@ -48,7 +39,6 @@ namespace OpenTkVoxelEngine
             DomainWarping,
             normalNoise,
             count
-
         }
 
         public NoiseVisualization(GameWindow window, ImGuiController controller) : base(window, controller)
@@ -75,13 +65,11 @@ namespace OpenTkVoxelEngine
         {
             _time += (float)args.Time;
 
-            
             UpdateFragVariables();
 
-
             _vao.Bind();
-            
-            GL.DrawArrays(PrimitiveType.Triangles,0,6);
+
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
             DrawImgui();
 
@@ -96,7 +84,6 @@ namespace OpenTkVoxelEngine
         public override void DrawImgui()
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
-
 
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(0, 70));
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(900, _window.ClientSize.Y));
@@ -129,16 +116,12 @@ namespace OpenTkVoxelEngine
                 ImGui.DragFloat("persistence", ref _noiseVariables.persistence, .01f, 0);
                 ImGui.DragFloat("strength", ref _noiseVariables.strength, 0.005f, 0.0001f);
                 ImGui.DragFloat("scale", ref _noiseVariables.scale, .005f, 0.0001f);
-                
             }
 
             if (currentNoiseType == NoiseType.Vornori || currentNoiseType == NoiseType.VornoriFBM)
             {
                 ImGui.DragFloat("jitter", ref _jitter, .005f, 0.0001f);
-
-
             }
-
 
             ImGui.End();
             _controller.Render();
@@ -146,12 +129,10 @@ namespace OpenTkVoxelEngine
 
         public override void OnUnload()
         {
-
         }
 
         public void UpdateFragVariables()
         {
-
             _shader.Use();
             _shader.SetFloat("time", _time);
             _shader.SetVec2("dimensions", _window.ClientSize);
@@ -160,8 +141,7 @@ namespace OpenTkVoxelEngine
             _shader.SetVec3("cameraUp", _camera.Up());
             _shader.SetVec3("cameraRight", _camera.Right());
 
-
-            _shader.SetInt("currentNoiseType",(int)currentNoiseType);
+            _shader.SetInt("currentNoiseType", (int)currentNoiseType);
 
             _shader.SetInt("seed", _noiseVariables.seed);
             _shader.SetInt("NumLayers", _noiseVariables.NumLayers);
@@ -172,14 +152,13 @@ namespace OpenTkVoxelEngine
             _shader.SetFloat("strength", _noiseVariables.strength);
             _shader.SetFloat("scale", _noiseVariables.scale);
             _shader.SetFloat("lacunicity", _noiseVariables.lacunicity);
-            _shader.SetFloat("jitter",_jitter);
-
+            _shader.SetFloat("jitter", _jitter);
         }
 
         public override void OnLoad()
         {
             _camera = new Camera(_window, 0.1f, 100, Vector3.UnitY);
-            
+
             _noiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 1f, 0.105f, 1, 1, 1);
 
             CreateScreenShader();

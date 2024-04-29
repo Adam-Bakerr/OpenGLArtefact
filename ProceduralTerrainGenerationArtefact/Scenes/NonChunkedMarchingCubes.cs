@@ -1,64 +1,60 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Runtime.Remoting;
-using System.Text;
-using System.Threading.Tasks;
-using Dear_ImGui_Sample;
+﻿using Dear_ImGui_Sample;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Drawing;
 using static OpenTkVoxelEngine.HydraulicErosion;
 using GL = OpenTK.Graphics.OpenGL4.GL;
-using IntPtr = System.IntPtr;
 
 namespace OpenTkVoxelEngine
 {
     internal class NonChunkedMarchingCubes : IScene
     {
         //Camera
-        Camera _camera;
+        private Camera _camera;
 
         //Shaders
-        Shader _shader;
-        ComputeShader _dfShader;
-        ComputeShader _marchCubesShader;
+        private Shader _shader;
+
+        private ComputeShader _dfShader;
+        private ComputeShader _marchCubesShader;
 
         //Shader Paths
-        string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.MarchingCubes";
-        string _vertexPath = "shader.vert";
-        string _fragmentPath = "shader.frag";
-        string _distanceFieldGenerationPath = "createDFnonchunked.compute";
-        string _marchCubesShaderPath = "MarchCubesShader.compute";
+        private string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.MarchingCubes";
+
+        private string _vertexPath = "shader.vert";
+        private string _fragmentPath = "shader.frag";
+        private string _distanceFieldGenerationPath = "createDFnonchunked.compute";
+        private string _marchCubesShaderPath = "MarchCubesShader.compute";
 
         //Buffers
-        VAO _vao;
-        int _vbo;
-        int _dfbo; //Distance Field Buffer Object
-        int _tcbo; //triangle connection buffer object
-        int _vcbo; //Vertex Counter Buffer Object
+        private VAO _vao;
+
+        private int _vbo;
+        private int _dfbo; //Distance Field Buffer Object
+        private int _tcbo; //triangle connection buffer object
+        private int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        Vector3i _dimensions = new Vector3i(128, 128, 128);
-        Vector3 _resolution = new Vector3(.1f);
-        int _workGroupSize = 8;
-        float _surfaceLevel = .5f;
-        float _grassBlendAmount = .875f;
-        float _grassSlopeThreshold = .15f;
-        float _totalTime = 0;
-        bool _testSpheres = false;
+        private Vector3i _dimensions = new Vector3i(128, 128, 128);
 
-        uint vertexCounterValue;
+        private Vector3 _resolution = new Vector3(.1f);
+        private int _workGroupSize = 8;
+        private float _surfaceLevel = .5f;
+        private float _grassBlendAmount = .875f;
+        private float _grassSlopeThreshold = .15f;
+        private float _totalTime = 0;
+        private bool _testSpheres = false;
+
+        private uint vertexCounterValue;
 
         //noise variables
-        HydraulicErosion.FBMNoiseVariables _heightMapNoiseVariables;
-        struct vertex
+        private HydraulicErosion.FBMNoiseVariables _heightMapNoiseVariables;
+
+        private struct vertex
         {
             public Vector4 aPosition;
             public Vector4 aColor;
@@ -68,16 +64,17 @@ namespace OpenTkVoxelEngine
             {
                 aPosition = pos; aColor = color; aNormal = normal;
             }
-
-
         }
 
         public int TriangleSize() => VertexSize() * 3;
+
         public int VertexSize() => (sizeof(float) * 12);
+
         public int VertexCount() => _dimensions.X * _dimensions.Y * _dimensions.Z;
+
         public int MaxVertexCount() => (((_dimensions.X - 1) * (_dimensions.Y - 1) * (_dimensions.Z - 1)) * 20);
 
-        vertex[] _verts = new vertex[]
+        private vertex[] _verts = new vertex[]
         {
             new vertex(new Vector4(-0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
             new vertex(new Vector4(0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
@@ -86,7 +83,6 @@ namespace OpenTkVoxelEngine
 
         public NonChunkedMarchingCubes(GameWindow window, ImGuiController controller) : base(window, controller)
         {
-
         }
 
         public void CreateBuffers()
@@ -97,7 +93,6 @@ namespace OpenTkVoxelEngine
             int maxTriangleCount = numVoxels * 5;
             int maxVertexCount = maxTriangleCount * 4;
             int maxver = MaxVertexCount();
-
 
             //Vertex Buffer
             _vbo = GL.GenBuffer();
@@ -134,11 +129,8 @@ namespace OpenTkVoxelEngine
                 (_shader.GetAttribLocation("aPosition"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 0),
                 (_shader.GetAttribLocation("aColor"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 4 * sizeof(float)),
                 (_shader.GetAttribLocation("aNormal"), 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), 8 * sizeof(float))
-
             };
             _vao.Enable(Pointers);
-
-
         }
 
         public void ResetAtomicCounter()
@@ -157,7 +149,6 @@ namespace OpenTkVoxelEngine
             int dfy = (int)(MathF.Ceiling(MathF.Max((_dimensions.Y), 1) / _workGroupSize));
 
             int dfz = (int)(MathF.Ceiling(MathF.Max((_dimensions.Z), 1) / _workGroupSize));
-
 
             //Create DF Values
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _dfbo);
@@ -196,9 +187,6 @@ namespace OpenTkVoxelEngine
             GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer, 0, sizeof(uint), ref vertexCounterValue);
             Console.WriteLine(vertexCounterValue);
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
-
-
-
         }
 
         public void CreateShaders()
@@ -216,8 +204,6 @@ namespace OpenTkVoxelEngine
             //Create the marching cubes shaders
             _marchCubesShader = new ComputeShader(_assemblyPath, _marchCubesShaderPath);
             UpdateMarchCubesShader();
-
-
         }
 
         public void UpdateDrawingShader()
@@ -225,7 +211,6 @@ namespace OpenTkVoxelEngine
             _shader.Use();
             _shader.SetIVec3("_dimensions", _dimensions);
         }
-
 
         public void UpdateDFShader()
         {
@@ -267,7 +252,7 @@ namespace OpenTkVoxelEngine
         {
             //_totalTime += (float)args.Time;
 
-            if(_testSpheres)OnDFUpdate();
+            if (_testSpheres) OnDFUpdate();
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -327,7 +312,6 @@ namespace OpenTkVoxelEngine
             watch.Stop();
 
             Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
-
         }
 
         public void OnDFUpdate()
@@ -362,12 +346,10 @@ namespace OpenTkVoxelEngine
             _controller.Render();
         }
 
-
         #region temp
 
-        int packIntUnitsAndFloat(int fourBitInt, float Float)
+        private int packIntUnitsAndFloat(int fourBitInt, float Float)
         {
-
             int units = (int)MathF.Floor(Float);
             float largerFloat = Float - units;
 
@@ -391,7 +373,7 @@ namespace OpenTkVoxelEngine
         }
 
         //Type and distance
-        (int, float) unpackIntUnitsAndFloat(int packedInt)
+        private (int, float) unpackIntUnitsAndFloat(int packedInt)
         {
             // Extract the 4-bit integer, 8-bit units, and 16-bit float from the packed int
             int fourBitInt = (packedInt >> 24) & 0xF;
@@ -410,8 +392,7 @@ namespace OpenTkVoxelEngine
             return Vector3.Distance(point2, point1) - radius;
         }
 
-
-        int[] triangulation = new int[]{
+        private int[] triangulation = new int[]{
          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,
          0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,
          0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,
@@ -670,6 +651,6 @@ namespace OpenTkVoxelEngine
          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
     };
 
-        #endregion
+        #endregion temp
     }
 }

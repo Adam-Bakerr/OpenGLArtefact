@@ -1,17 +1,12 @@
 ﻿using Engine;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Desktop;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using OpenTkVoxelEngine;
-using System.Reflection.Metadata;
 
 namespace OpenTkVoxelEngine
 {
     public class ComputeShader
     {
-        int _handle;
+        private int _handle;
 
         public void use()
         {
@@ -28,7 +23,7 @@ namespace OpenTkVoxelEngine
             GL.ShaderSource(compute, ShaderSoruce);
             GL.CompileShader(compute);
 
-            //Get the compile status of the shader to see if it compiled 
+            //Get the compile status of the shader to see if it compiled
             GL.GetShader(compute, ShaderParameter.CompileStatus, out int successCompute);
             //Check to see if failed
             if (successCompute == 0)
@@ -53,8 +48,8 @@ namespace OpenTkVoxelEngine
             GL.DetachShader(_handle, compute);
 
             GL.DeleteShader(compute);
-
         }
+
         //Load From Assembly
         public ComputeShader(string AssemblyPath, string FileName)
         {
@@ -69,12 +64,11 @@ namespace OpenTkVoxelEngine
                 computeSource = reader.ReadToEnd();
             }
 
-
             var compute = GL.CreateShader(ShaderType.ComputeShader);
             GL.ShaderSource(compute, computeSource);
             GL.CompileShader(compute);
 
-            //Get the compile status of the shader to see if it compiled 
+            //Get the compile status of the shader to see if it compiled
             GL.GetShader(compute, ShaderParameter.CompileStatus, out int successCompute);
             //Check to see if failed
             if (successCompute == 0)
@@ -99,7 +93,6 @@ namespace OpenTkVoxelEngine
             GL.DetachShader(_handle, compute);
 
             GL.DeleteShader(compute);
-
         }
 
         public int GetAttribLocation(String attribName)
@@ -112,6 +105,7 @@ namespace OpenTkVoxelEngine
             int location = GL.GetUniformLocation(_handle, name);
             GL.Uniform1(location, value);
         }
+
         public void SetUint(string name, uint value)
         {
             int location = GL.GetUniformLocation(_handle, name);
@@ -127,7 +121,7 @@ namespace OpenTkVoxelEngine
         public void SetFloatA(string name, float[] values)
         {
             int location = GL.GetUniformLocation(_handle, name);
-            GL.Uniform1(location, values.Length,values);
+            GL.Uniform1(location, values.Length, values);
         }
 
         public void SetBool(string name, bool value)
@@ -181,7 +175,6 @@ namespace OpenTkVoxelEngine
             GL.Uniform2(location, value);
         }
 
-
         public void SetMatrix4(string name, Matrix4 value)
         {
             int location = GL.GetUniformLocation(_handle, name);
@@ -200,10 +193,8 @@ namespace OpenTkVoxelEngine
             GL.UniformMatrix2(location, true, ref value);
         }
 
-
         //Dispose of shader, cannot be done in finalazer due to oo natures
-        bool disposedValue = false;
-
+        private bool disposedValue = false;
 
         protected virtual void Dispose(bool disposing)
         {
@@ -228,6 +219,5 @@ namespace OpenTkVoxelEngine
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-
     }
 }

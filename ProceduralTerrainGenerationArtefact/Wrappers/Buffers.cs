@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 
 namespace OpenTkVoxelEngine
 {
@@ -12,7 +7,7 @@ namespace OpenTkVoxelEngine
     {
         public int _objectHandle { get; private set; }
 
-        List<(int, int, VertexAttribPointerType, bool, int, int)> VertexAttribPointers = new List<(int, int, VertexAttribPointerType, bool, int, int)>();
+        private List<(int, int, VertexAttribPointerType, bool, int, int)> VertexAttribPointers = new List<(int, int, VertexAttribPointerType, bool, int, int)>();
 
         public VAO()
         {
@@ -30,7 +25,6 @@ namespace OpenTkVoxelEngine
             }
         }
 
-
         public void Bind()
         {
             GL.BindVertexArray(_objectHandle);
@@ -47,7 +41,6 @@ namespace OpenTkVoxelEngine
     {
         public int _objectHandle { get; private set; }
 
-
         public VBO()
         {
             _objectHandle = GL.GenBuffer();
@@ -55,11 +48,10 @@ namespace OpenTkVoxelEngine
 
         public void BufferData<T>(T[] Data, BufferUsageHint hint) where T : struct, IComparable
         {
-
             GL.BindBuffer(BufferTarget.ArrayBuffer, _objectHandle);
             GL.BufferData(BufferTarget.ArrayBuffer, Data.Length * sizeof(float), Data, hint);
-
         }
+
         public void Dispose()
         {
             GL.DeleteBuffer(_objectHandle);
@@ -79,17 +71,14 @@ namespace OpenTkVoxelEngine
 
         public void BufferData<T>(T[] Data, BufferUsageHint hint) where T : struct, IComparable
         {
-
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, _objectHandle);
             GL.BufferData(BufferTarget.ElementArrayBuffer, Data.Length * sizeof(uint), Data, hint);
-
         }
 
         public void Dispose()
         {
             GL.DeleteBuffer(_objectHandle);
         }
-
     }
 
     public class SSBO
@@ -104,17 +93,15 @@ namespace OpenTkVoxelEngine
 
         public void BufferData<T>(T[] Data, BufferUsageHint hint, int BindingIndex) where T : struct, IComparable
         {
-
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _objectHandle);
             GL.BufferData(BufferTarget.ShaderStorageBuffer, Data.Length * sizeof(uint), Data, hint);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, BindingIndex,_objectHandle);
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer,0);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, BindingIndex, _objectHandle);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
         }
 
         public void Dispose()
         {
             GL.DeleteBuffer(_objectHandle);
         }
-
     }
 }

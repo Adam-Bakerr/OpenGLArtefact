@@ -6,66 +6,57 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTkVoxelEngine;
-using System.Reflection;
 
 namespace Engine
 {
-    public static class MainProgram 
+    public static class MainProgram
     {
-
         //Programs Entry Point
-        static void Main()
+        private static void Main()
         {
-
-
             //Create Window Settings
             var nativeWindowSettings = new NativeWindowSettings()
             {
-                ClientSize = new Vector2i(1920,1080),
+                ClientSize = new Vector2i(1920, 1080),
                 Title = "Procedural Generation Artifact",
                 Flags = ContextFlags.ForwardCompatible,
-                Location = new Vector2i(1024,1024)
+                Location = new Vector2i(1024, 1024)
             };
-
 
             //Run The Window Until Its Closed
             using (var window = new Window(GameWindowSettings.Default, nativeWindowSettings))
             {
                 window.Run();
             }
-
         }
-
-
     }
 
-
-    //The Main Window 
-    public class Window : GameWindow{
+    //The Main Window
+    public class Window : GameWindow
+    {
         public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) : base(gameWindowSettings, nativeWindowSettings)
         {
         }
 
-        
-
-
         //Imgui Controller
-        ImGuiController _controller;
+        private ImGuiController _controller;
 
         //Scenes
-        static List<IScene> _scenes;
-        static IScene ActiveScene;
-        int activeSceneIndex = 0;
-        
+        private static List<IScene> _scenes;
+
+        private static IScene ActiveScene;
+        private int activeSceneIndex = 0;
+
         //Current polygon mode
-        PolygonMode _polygonMode = PolygonMode.Fill;
-        PolygonMode[] _polygonModes = new []
+        private PolygonMode _polygonMode = PolygonMode.Fill;
+
+        private PolygonMode[] _polygonModes = new[]
         {
             PolygonMode.Fill, PolygonMode.Point, PolygonMode.Line
         };
 
         //Enum of all scenes used to dynamically display imgui buttons
-        enum scenes
+        private enum scenes
         {
             Erosion,
             ChunkedMarchingCubes,
@@ -81,7 +72,7 @@ namespace Engine
             base.OnLoad();
 
             GL.Viewport(0, 0, ClientSize.X, ClientSize.Y);
-            
+
             //Setup imgui controller
             _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
 
@@ -100,7 +91,6 @@ namespace Engine
             ActiveScene.SetActive(true);
         }
 
-
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);
@@ -108,14 +98,14 @@ namespace Engine
             // Update the opengl viewport
             GL.Viewport(0, 0, ClientSize.X, ClientSize.Y);
 
-            _controller.WindowResized(ClientSize.X,ClientSize.Y);
+            _controller.WindowResized(ClientSize.X, ClientSize.Y);
         }
 
-        bool _cursorLocked = true;
+        private bool _cursorLocked = true;
 
-        float frames = 0;
-        float fps = 0;
-        float time = 0;
+        private float frames = 0;
+        private float fps = 0;
+        private float time = 0;
 
         protected override void OnRenderFrame(FrameEventArgs args)
         {
@@ -131,7 +121,6 @@ namespace Engine
 
             //Update Imgui Controller
             _controller.Update(this, (float)args.Time);
-
 
             //Hide debug window off screen
             ImGui.SetWindowPos(new System.Numerics.Vector2(ClientSize.X * 2, ClientSize.Y * 2));
@@ -158,7 +147,6 @@ namespace Engine
                     ImGui.EndDisabled();
                 }
             }
-   
 
             ImGui.Text("Draw Mode");
             for (int i = 0; i < 3; i++)
@@ -170,7 +158,7 @@ namespace Engine
                 if (ImGui.Button(Enum.GetName(_polygonModes[i])))
                 {
                     _polygonMode = _polygonModes[i];
-                    GL.PolygonMode(MaterialFace.FrontAndBack,_polygonMode);
+                    GL.PolygonMode(MaterialFace.FrontAndBack, _polygonMode);
                 }
                 if (i == (int)_polygonMode)
                 {
@@ -179,13 +167,11 @@ namespace Engine
             }
 
             ImGui.EndMainMenuBar();
-
         }
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             base.OnUpdateFrame(args);
-
 
             //Listen For Window Closing
             if (IsKeyPressed(Keys.Escape))
@@ -204,7 +190,6 @@ namespace Engine
                 _cursorLocked = true;
                 CursorState = CursorState.Grabbed;
             }
-
         }
     }
 }
