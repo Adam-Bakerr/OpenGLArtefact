@@ -59,17 +59,15 @@ layout(std430, binding = 4) buffer vertexBuffer
 
 
 // Returns xGradient yGradient Height
-vec3 CalculateHeightAndGradient (float posx, float posy) {
+vec3 CalculateHeightAndGradient (vec2 pos) {
     //Get x&y coord from current cell
-    int coordX = int(floor(posx));
-    int coordY = int(floor(posy));
+    ivec2 coord = ivec2(floor(pos));
 
     //Calculate the dropless position from within the cell, to get the offset for bi interpolation
-    float x = posx - coordX;
-    float y = posy - coordY;
+    vec2 dropletPos = pos - coord;
 
     // Calculate heights of the four nodes of the droplet's cell
-    int flooredNodeIndex = coordY * vertexCount.x + coordX;
+    int flooredNodeIndex = coord.y * vertexCount.x + coord.x;
 
     //Get the height values of the 4 nodes of this "quadrent"
     float heightNW = map[flooredNodeIndex];
@@ -78,11 +76,11 @@ vec3 CalculateHeightAndGradient (float posx, float posy) {
     float heightSE = map[flooredNodeIndex + vertexCount.x + 1];
 
     // Calculate droplet's direction of flow with bilinear interpolation of height difference along the edges
-    float X = (heightNE - heightNW) * (1 - y) + (heightSE - heightSW) * y;
-    float Y = (heightSW - heightNW) * (1 - x) + (heightSE - heightNE) * x;
+    float X = (heightNE - heightNW) * (1 - dropletPos.y) + (heightSE - heightSW) * dropletPos.y;
+    float Y = (heightSW - heightNW) * (1 - dropletPos.x) + (heightSE - heightNE) * dropletPos.x;
 
     // Calculate height with bilinear interpolation of the heights of the nodes of the cell
-    float height = heightNW * (1 - x) * (1 - y) + heightNE * x * (1 - y) + heightSW * (1 - x) * y + heightSE * x * y;
+    float height = heightNW * (1 - dropletPos.x) * (1 - dropletPos.y) + heightNE * dropletPos.x * (1 - dropletPos.y) + heightSW * (1 - dropletPos.x) * dropletPos.y + heightSE * dropletPos.x * dropletPos.y;
 
     return vec3(X,Y,height);
 }
@@ -98,24 +96,27 @@ void main()
     vec2 pos = Particles[id.x];
     float posX = pos.x;
     float posY = pos.y;
-    vec3 initialHeightAndGradient = CalculateHeightAndGradient (posX, posY);
 
     vec2 dir = vec2(0);
     float speed = startSpeed;
     float water = startWater;
     float sediment = 0;
 
+    int dropletIndex;
+    float cellOffsetX = 0;
+    float cellOffsetY = 0;
+
     for (int lifetime = 0; lifetime < maxLifetime; lifetime ++) {
         int nodeX = int(floor(posX));
         int nodeY = int(floor(posY));
-        int dropletIndex = nodeY * vertexCount.x + nodeX;
+        dropletIndex = nodeY * vertexCount.x + nodeX;
 
         // Calculate droplet's offset inside the cell
-        float cellOffsetX = posX - nodeX;
-        float cellOffsetY = posY - nodeY;
+        cellOffsetX = posX - nodeX;
+        cellOffsetY = posY - nodeY;
 
         // Calculate droplet's height and direction of flow with interpolation of in respect to the neighbouring heights
-        vec3 heightAndGradient = CalculateHeightAndGradient (posX, posY);
+        vec3 heightAndGradient = CalculateHeightAndGradient (vec2(posX,posY));
 
         // we update the droplets positon based of its current speed
         dir.x = (dir.x * inertia - heightAndGradient.x * (1 - inertia));
@@ -138,7 +139,7 @@ void main()
 
 
         //Get the height after travel and compare to the previous height to calculate the possible sediment we can take
-        float newHeight = CalculateHeightAndGradient (posX, posY).z;
+        float newHeight = CalculateHeightAndGradient (vec2(posX, posY)).z;
         float deltaHeight = newHeight - heightAndGradient.z;
 
         //Calculate the current capacity of the droplet (not the current sediment held)

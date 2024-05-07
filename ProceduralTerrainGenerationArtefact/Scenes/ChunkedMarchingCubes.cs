@@ -61,7 +61,7 @@ namespace OpenTkVoxelEngine
         private string _vertexPath = "shader.vert";
         private string _fragmentPath = "shader.frag";
         private string _distanceFieldGenerationPath = "createDF.compute";
-        private string _marchCubesShaderPath = "MarchCubesShader.compute";
+        private string _marchCubesShaderPath = "MarchCubesShader.glsl";
 
         //Buffers
         private VAO _vao;
@@ -74,7 +74,7 @@ namespace OpenTkVoxelEngine
         //Variables
         private Matrix4 _model = Matrix4.Identity;
 
-        private Vector3i _dimensions = new Vector3i(128, 128, 128);
+        private Vector3i _dimensions = new Vector3i(32, 8, 32);
         private Vector3 _resolution = new Vector3(.125f);
         private int _workGroupSize = 8;
         private float _surfaceLevel = .425f;

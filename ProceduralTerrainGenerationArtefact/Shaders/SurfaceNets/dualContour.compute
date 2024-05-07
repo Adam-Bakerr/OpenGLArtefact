@@ -20,28 +20,26 @@ struct Edge {
 	int Index2;
 };
 
-
-
 uniform vec3 resolution;
 uniform ivec3 vertexCount;
 uniform float surfaceLevel;
 
-	Edge edges[12] = {
-		{ 0, 1 },
-		{ 0, 2 },
-		{ 0, 4 },
-		{ 1, 3 },
+Edge edges[12] = {
+	{ 0, 1 },
+	{ 0, 2 },
+	{ 0, 4 },
+	{ 1, 3 },
 
-		{ 1, 5 },
-		{ 2, 3 },
-		{ 2, 6 },
-		{ 4, 5 },
+	{ 1, 5 },
+	{ 2, 3 },
+	{ 2, 6 },
+	{ 4, 5 },
 
-		{ 4, 6 },
-		{ 3, 7 },
-		{ 6, 7 },
-		{ 5, 7 }
-	};
+	{ 4, 6 },
+	{ 3, 7 },
+	{ 6, 7 },
+	{ 5, 7 }
+};
 
 vec3 interpolateVerts(vec4 v1, vec4 v2)
 {
@@ -53,7 +51,6 @@ vec3 interpolateVerts(vec4 v1, vec4 v2)
 int CheckSign(float value){
     if(value >= surfaceLevel ) return 1;
     if(value < surfaceLevel) return -1;
-    //return 0;
 }
 
 

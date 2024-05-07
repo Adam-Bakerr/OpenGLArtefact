@@ -20,7 +20,6 @@ uniform ivec2 vertexCount;
 
 void main()
 { 
-
 	ivec2 id = ivec2(gl_GlobalInvocationID.xy);
 
 	if(id.x >= vertexCount.x || id.y >= vertexCount.y){
@@ -43,5 +42,4 @@ void main()
 	normal = normalize(-normal);
 
 	verticies[index].Normal = vec4(normal,1);
-	//verticies[index].Color = vec4(normal,1);
 }

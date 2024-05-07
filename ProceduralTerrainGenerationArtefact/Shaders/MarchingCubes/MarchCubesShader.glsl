@@ -405,7 +405,7 @@ void main()
     for (int i = 0; i < 15; i += 3)
     {
         if(triTable[cubeIndex * 16 + i] == -1){
-        continue;
+            break;
         }
 
         int a0 = cornerIndexAFromEdge[triTable[cubeIndex * 16 + i]];

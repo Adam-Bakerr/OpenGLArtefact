@@ -32,7 +32,6 @@ layout(std430, binding = 2) buffer Vertex
 
 layout(binding = 3) uniform atomic_uint counter;
 
-
 uniform vec4 resolution;
 uniform ivec3 vertexCount;
 uniform float surfaceLevel;
@@ -42,33 +41,6 @@ vec4 CalculateNormal(vec4 point1, vec4 point2, vec4 point3){
 	    vec3 e2 = point3.xyz - point1.xyz;
         vec3 normal = cross(e1,e2);
         return(vec4(normalize(-normal),1));
-}
-
-vec3 Lerp(vec3 v0, vec3 v1, float t) {
-	return (1 - t) * v0 + t * v1;
-}
-
-float InverseLerp(float a, float b, float t) {
-	if (a != b)
-		return (t - a) / (b - a);
-	return 0;
-}
-
-
-int CheckSign(float value){
-    if(value >= surfaceLevel ) return 1;
-    return -1;
-}
-
-vec4 interpolateVerts(vec4 v1, vec4 v2)
-{
-    float t = (surfaceLevel - v1.w) / (v2.w - v1.w);
-    return vec4(v1.xyz + t * (v2.xyz - v1.xyz),1);
-}
-
-vec4 positionAndValueFromIndex(ivec3 id){
-    int index = id.y * vertexCount.x * vertexCount.z + id.z * vertexCount.x + id.x;
-    return vec4(id.x*resolution.x,id.y*resolution.y,id.z*resolution.z,points[index]);
 }
 
 int GetIndex(vec3 pos){

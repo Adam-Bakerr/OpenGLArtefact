@@ -31,7 +31,7 @@ namespace OpenTkVoxelEngine
     internal class HydraulicErosion : IScene
     {
         //Grid Definitions
-        Vector2i _gridVertexCount = new Vector2i(2048, 2048);
+        Vector2i _gridVertexCount = new Vector2i(1024, 1024);
         Vector2 _gridDimensions = new Vector2(25, 25);
         Vector2 Resolution() => _gridDimensions / _gridVertexCount;
         int VertexCount() => _gridVertexCount.X * _gridVertexCount.Y;
@@ -91,17 +91,17 @@ namespace OpenTkVoxelEngine
         string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.ErosionShaders";
         string _vertexPath = "Shaders/ErosionShaders/erosionVert.vert";
         string _fragmentPath = "Shaders/ErosionShaders/erosionFrag.frag";
-        string _createVertexComputePath = "createVertcies.compute";
-        string _createIndicesComputePath = "createIndices.compute";
-        string _noiseApplicationComputePath = "noiseApplication.compute";
-        string _fallOffComputePath = "fallOffApplication.compute";
-        string _normalCalculationComputePath = "normalCalculation.compute";
-        string _biomeGenerationComputePath = "biomeGeneration.compute";
-        string _biomeApplicationShaderPath = "applyBiomeMap.compute";
-        string _erosionComputePath = "erode2.compute";
-        string _particleCreationPath = "createParticles.compute";
-        string _postErosionPassOnePath = "postErosionSmoothingPassOne.compute";
-        string _postErosionPassTwoPath = "postErosionSmoothingPassTwo.compute";
+        string _createVertexComputePath = "createVertcies.glsl";
+        string _createIndicesComputePath = "createIndices.glsl";
+        string _noiseApplicationComputePath = "noiseApplication.glsl";
+        string _fallOffComputePath = "fallOffApplication.glsl";
+        string _normalCalculationComputePath = "normalCalculation.glsl";
+        string _biomeGenerationComputePath = "biomeGeneration.glsl";
+        string _biomeApplicationShaderPath = "applyBiomeMap.glsl";
+        string _erosionComputePath = "erode.glsl";
+        string _particleCreationPath = "createParticles.glsl";
+        string _postErosionPassOnePath = "postErosionSmoothingPassOne.glsl";
+        string _postErosionPassTwoPath = "postErosionSmoothingPassTwo.glsl";
 
         //Camera
         Camera camera;

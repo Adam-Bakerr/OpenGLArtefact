@@ -28,7 +28,7 @@ namespace OpenTkVoxelEngine
         private string _vertexPath = "shader.vert";
         private string _fragmentPath = "shader.frag";
         private string _distanceFieldGenerationPath = "createDFnonchunked.compute";
-        private string _marchCubesShaderPath = "MarchCubesShader.compute";
+        private string _marchCubesShaderPath = "MarchCubesShader.glsl";
 
         //Buffers
         private VAO _vao;
@@ -197,7 +197,7 @@ namespace OpenTkVoxelEngine
 
             //Create our cube df data
             _dfShader = new ComputeShader(_assemblyPath, _distanceFieldGenerationPath);
-            _heightMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 19.935f, 0.005f, 0, 150, 1);
+            _heightMapNoiseVariables = new FBMNoiseVariables(0, 5, Vector3.Zero, -0.16f, .725f, 3.060f, -10, 0.025f, -0.005f, 0, 150, 1);
 
             UpdateDFShader();
 
@@ -250,10 +250,6 @@ namespace OpenTkVoxelEngine
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
-            //_totalTime += (float)args.Time;
-
-            if (_testSpheres) OnDFUpdate();
-
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
@@ -272,6 +268,8 @@ namespace OpenTkVoxelEngine
             _shader.SetVec3("light.specular", new Vector3(.10f, .10f, .10f));
 
             _vao.Bind();
+
+            Console.WriteLine(vertexCounterValue);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, (int)vertexCounterValue);
 

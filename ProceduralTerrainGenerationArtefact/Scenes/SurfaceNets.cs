@@ -30,7 +30,7 @@ namespace OpenTkVoxelEngine
         private string _fragmentPath = "shader.frag";
         private string _distanceFieldGenerationPath = "createDF.compute";
         private string _marchCubesShaderPath = "dualContour.compute";
-        private string _createVertexPath = "CreateVerticies.compute";
+        private string _createVertexPath = "CreateVerticies.glsl";
 
         //Buffers
         private VAO _vao;
@@ -41,7 +41,7 @@ namespace OpenTkVoxelEngine
         private int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        private Vector3i _dimensions = new Vector3i(32, 32, 32);
+        private Vector3i _dimensions = new Vector3i(128, 128, 128);
 
         private Vector3 _resolution = new Vector3(.1f);
         private int _workGroupSize = 8;
@@ -198,7 +198,7 @@ namespace OpenTkVoxelEngine
 
             //Create our cube df data
             _dfShader = new ComputeShader(_assemblyPath, _distanceFieldGenerationPath);
-            _heightMapNoiseVariables = new FBMNoiseVariables(0, 3, Vector3.Zero, .6f, .8f, 4.31f, 0, 19.935f, 0.005f, 0, 150, 1);
+            _heightMapNoiseVariables = new FBMNoiseVariables(0, 5, Vector3.Zero, -0.16f, .725f, 3.060f, -10, 0.025f, -0.005f, 0, 150, 1);
 
             UpdateDFShader();
 
@@ -230,8 +230,6 @@ namespace OpenTkVoxelEngine
             _dfShader.use();
             _dfShader.SetVec3("resolution", _resolution);
             _dfShader.SetIVec3("vertexCount", _dimensions);
-            _dfShader.SetFloat("totalTime", _totalTime);
-            _dfShader.SetBool("testSpheres", _drawTestSpheres);
             _dfShader.SetInt("baseHeightmap.seed", _heightMapNoiseVariables.seed);
             _dfShader.SetInt("baseHeightmap.NumLayers", _heightMapNoiseVariables.NumLayers);
             _dfShader.SetVec3("baseHeightmap.centre", _heightMapNoiseVariables.centre);
