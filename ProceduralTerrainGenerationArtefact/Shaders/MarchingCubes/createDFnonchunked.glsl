@@ -138,6 +138,10 @@ void main()
 	if(id.x == 0 || id.x == vertexCount.x - 1 || id.z == 0 || id.z == vertexCount.z - 1 || id.y == 0){
 		value = 0;
 	}
+	vec3 center = vertexCount / 2.0;
+	value = 30.0 / length(center - id);
+
+
 
 	points[index] = value;
 

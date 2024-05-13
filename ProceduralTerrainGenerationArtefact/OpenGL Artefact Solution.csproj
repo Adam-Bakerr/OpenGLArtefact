@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Shaders\MarchingCubes\createDFnonchunked.compute" />
+    <None Remove="Shaders\MarchingCubes\createDFnonchunked.glsl" />
   </ItemGroup>
 
   <ItemGroup>

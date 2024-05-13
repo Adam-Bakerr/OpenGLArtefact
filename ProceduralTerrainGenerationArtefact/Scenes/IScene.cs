@@ -44,8 +44,8 @@ namespace OpenTkVoxelEngine
         {
             if (value)
             {
-                AddListeners();
                 if (!initalized) OnLoad();
+                AddListeners();
                 initalized = true;
             }
             else

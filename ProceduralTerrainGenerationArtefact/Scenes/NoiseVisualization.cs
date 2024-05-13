@@ -43,6 +43,7 @@ namespace OpenTkVoxelEngine
 
         public NoiseVisualization(GameWindow window, ImGuiController controller) : base(window, controller)
         {
+            Console.WriteLine("TEst");
         }
 
         public void CreateScreenShader()
@@ -63,11 +64,16 @@ namespace OpenTkVoxelEngine
 
         public override void OnRenderFrame(FrameEventArgs args)
         {
+            GL.ClearColor(Color4.Black);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+
             _time += (float)args.Time;
 
             UpdateFragVariables();
 
             _vao.Bind();
+
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 

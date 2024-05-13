@@ -10,9 +10,9 @@ layout(std430, binding = 0) buffer point
 };
 
 
-layout(std430, binding = 1) buffer FeaturePoints
+layout(std430, binding = 1) buffer ContourPointBuffer
 {
-    vec4 featurePoints[];
+    vec4 ContourPoints[];
 };
 
 struct Edge {
@@ -67,11 +67,11 @@ vec3 GetPosition(int index) {
 }
 
 
-
 void main()
 { 
 	ivec3 id = ivec3(gl_GlobalInvocationID.xyz);
 
+	//Ensure the shader only runs on data we have access to, this avoids undefined behaviour from occuring
 	if(id.x >= vertexCount.x || id.y >= vertexCount.y || id.z >= vertexCount.z){
 		return;
 	}
@@ -79,23 +79,26 @@ void main()
     int index = id.y * vertexCount.x * vertexCount.z + id.z * vertexCount.x + id.x;
 	
 
-    vec3 fp = vec3(0);
-    int edgeCrossing = 0;
+    vec3 averageContourPoint = vec3(0);
+    float edgeCrossing = 0.0;
 
+	//Calculate the index of each of the 8 vertices that make up the voxel
     int indices[8] = {
-		GetIndex(id),
-		GetIndex(id + vec3(0,0,1)),
-		GetIndex(id + vec3(0,1,0)),
-		GetIndex(id + vec3(0,1,1)),
+		index,
+		index + GetIndex(vec3(0,0,1)),
+		index + GetIndex(vec3(0,1,0)),
+		index + GetIndex(vec3(0,1,1)),
 
-		GetIndex(id + vec3(1,0,0)),
-		GetIndex(id + vec3(1,0,1)),
-		GetIndex(id + vec3(1,1,0)),
-		GetIndex(id + vec3(1,1,1))
+		index + GetIndex(vec3(1,0,0)),
+		index + GetIndex(vec3(1,0,1)),
+		index + GetIndex(vec3(1,1,0)),
+		index + GetIndex(vec3(1,1,1))
 	};
 
+	//Itterate Over All Possible Edge Pairs In The Current Voxel
     for(int i = 0 ; i < 12 ; i++){
 
+		//Retreive the data from buffers
         int index1 = indices[edges[i].Index1];
         int index2 = indices[edges[i].Index2];
 
@@ -105,19 +108,21 @@ void main()
         float density1 = points[index1];
 		float density2 = points[index2];
 
+		//If Both Vertices Of This Edge Pair Are On The Same Side Of The
+		//surface we ignore it as the edge never crosses the surface itself
         if (CheckSign(density1) == CheckSign(density2))
 		{
 			continue;
 		}
-        fp += interpolateVerts(vec4(pos1,density1), vec4(pos2,density2));
+
+		//Add The crossing point to the average
+        averageContourPoint += interpolateVerts(vec4(pos1,density1), vec4(pos2,density2));
 		edgeCrossing++;
     }
 
-    if (edgeCrossing > 0) {
-		fp = fp / float(edgeCrossing);
-	}
-	
-    featurePoints[GetIndex(id)] = vec4(fp,1);
+	//Divide the average by the total number of times a edge crossed the surface to find the mean
+	averageContourPoint /= max(1.0,edgeCrossing);
+    ContourPoints[GetIndex(id)] = vec4(averageContourPoint,1);
 
 }
 

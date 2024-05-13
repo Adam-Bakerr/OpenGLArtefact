@@ -433,7 +433,7 @@ float RayMarch(vec3 ro, vec3 rd, inout vec3 color){
         vec3 p = ro + rd * dO;
         float ds = GetDist(p); // ds is Distance Scene
         dO += ds;
-        if(dO > MAX_DIST || ds< SURFACE_DIST){
+        if(dO > MAX_DIST || ds < SURFACE_DIST){
         color = SampleColorWithNoise(p);
         break;
         };

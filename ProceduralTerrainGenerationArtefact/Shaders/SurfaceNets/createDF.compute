@@ -142,7 +142,14 @@ void main()
 	value = 0;
 	}
 
+	//vec3 center = vertexCount / 2.0;
+	//float value = 1 / length(center - id);
 
+//float value = 0;
+
+//if((id.x >= 2 && id.x <= 6) && (id.y >= 2 && id.y <= 6) && (id.z >= 2 && id.z <= 6)){
+//	value = 1;
+//}
 
 	points[index] = value;
 	

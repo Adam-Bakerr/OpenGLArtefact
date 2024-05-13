@@ -27,7 +27,7 @@ namespace OpenTkVoxelEngine
 
         private string _vertexPath = "shader.vert";
         private string _fragmentPath = "shader.frag";
-        private string _distanceFieldGenerationPath = "createDFnonchunked.compute";
+        private string _distanceFieldGenerationPath = "createDFnonchunked.glsl";
         private string _marchCubesShaderPath = "MarchCubesShader.glsl";
 
         //Buffers
@@ -47,39 +47,17 @@ namespace OpenTkVoxelEngine
         private float _grassBlendAmount = .875f;
         private float _grassSlopeThreshold = .15f;
         private float _totalTime = 0;
-        private bool _testSpheres = false;
 
         private uint vertexCounterValue;
 
         //noise variables
         private HydraulicErosion.FBMNoiseVariables _heightMapNoiseVariables;
 
-        private struct vertex
-        {
-            public Vector4 aPosition;
-            public Vector4 aColor;
-            public Vector4 aNormal;
-
-            public vertex(Vector4 pos, Vector4 color, Vector4 normal)
-            {
-                aPosition = pos; aColor = color; aNormal = normal;
-            }
-        }
-
-        public int TriangleSize() => VertexSize() * 3;
-
         public int VertexSize() => (sizeof(float) * 12);
 
         public int VertexCount() => _dimensions.X * _dimensions.Y * _dimensions.Z;
 
         public int MaxVertexCount() => (((_dimensions.X - 1) * (_dimensions.Y - 1) * (_dimensions.Z - 1)) * 20);
-
-        private vertex[] _verts = new vertex[]
-        {
-            new vertex(new Vector4(-0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-            new vertex(new Vector4(0.5f, -0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-            new vertex(new Vector4(0.5f, 0.5f, -0.5f,1),Vector4.One,Vector4.UnitY),
-        };
 
         public NonChunkedMarchingCubes(GameWindow window, ImGuiController controller) : base(window, controller)
         {
@@ -215,7 +193,6 @@ namespace OpenTkVoxelEngine
         public void UpdateDFShader()
         {
             _dfShader.use();
-            _dfShader.SetBool("testSpheres", _testSpheres);
             _dfShader.SetVec3("resolution", _resolution);
             _dfShader.SetIVec3("vertexCount", _dimensions);
             _dfShader.SetFloat("totalTime", _totalTime);
@@ -338,7 +315,6 @@ namespace OpenTkVoxelEngine
             if (ImGui.DragFloat("IsoLevel", ref _surfaceLevel, .025f, 0, 1)) OnDFUpdate();
             if (ImGui.DragFloat("Grass Slope Threshold", ref _grassSlopeThreshold, .025f, 0, 1)) OnDFUpdate();
             if (ImGui.DragFloat("Grass Blend Amount", ref _grassBlendAmount, .025f, 0, 1)) OnDFUpdate();
-            if (ImGui.Checkbox("Test Spheres", ref _testSpheres)) OnDFUpdate();
             ImGui.End();
 
             _controller.Render();
