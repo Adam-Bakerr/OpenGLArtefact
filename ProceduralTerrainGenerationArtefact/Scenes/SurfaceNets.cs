@@ -24,7 +24,7 @@ namespace OpenTkVoxelEngine
         private ComputeShader _createVertexShader;
 
         //Shader Paths
-        private string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.SurfaceNets";
+        private string _assemblyPath = "S225170_-_OPENGL_-_Procedural_Content_Generation_Artefact.Shaders.SurfaceNets";
 
         private string _vertexPath = "shader.vert";
         private string _fragmentPath = "shader.frag";

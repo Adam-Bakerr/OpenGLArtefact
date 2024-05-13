@@ -88,7 +88,7 @@ namespace OpenTkVoxelEngine
         ComputeShader _postErosionPassTwo;
 
         //Shader paths located in the assembly
-        string _assemblyPath = "OpenGL_Artefact_Solution.Shaders.ErosionShaders";
+        string _assemblyPath = "S225170_-_OPENGL_-_Procedural_Content_Generation_Artefact.Shaders.ErosionShaders";
         string _vertexPath = "Shaders/ErosionShaders/erosionVert.vert";
         string _fragmentPath = "Shaders/ErosionShaders/erosionFrag.frag";
         string _createVertexComputePath = "createVertcies.glsl";
