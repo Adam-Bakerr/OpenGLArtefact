@@ -41,7 +41,7 @@ namespace OpenTkVoxelEngine
         private int _vcbo; //Vertex Counter Buffer Object
 
         //Variables
-        private static Vector3i _dimensions = new Vector3i(128, 128, 128);
+        private static Vector3i _dimensions = new Vector3i(1024, 32, 1024);
         private Vector3i _voxelDimensions = _dimensions - Vector3i.One;
 
         private Vector3 _resolution = new Vector3(.1f);
@@ -53,6 +53,7 @@ namespace OpenTkVoxelEngine
         private bool _drawTestSpheres;
 
         private uint vertexCounterValue;
+
 
         //noise variables
         private HydraulicErosion.FBMNoiseVariables _heightMapNoiseVariables;
@@ -202,7 +203,7 @@ namespace OpenTkVoxelEngine
             //Get Counter Data To Reduce The Amount Of Verticies Drawn My a order of magnitude
             GL.GetBufferSubData(BufferTarget.AtomicCounterBuffer, 0, sizeof(uint), ref vertexCounterValue);
 
-            Console.WriteLine($"Triangle Count : {vertexCounterValue / 3.0f}");
+            Console.WriteLine($"Vertex Count : {vertexCounterValue}");
             GL.BindBuffer(BufferTarget.AtomicCounterBuffer, 0);
         }
 
@@ -279,10 +280,28 @@ namespace OpenTkVoxelEngine
 
         private float _totalTime = 0;
 
+        bool runBenchmark = false;
+        List<double> executionTimes = new();
+
+        public void Benchmark()
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+
+            //Run ALl The Shaders
+            OnDFUpdate();
+
+            watch.Stop();
+
+            executionTimes.Add(watch.Elapsed.TotalNanoseconds);
+        }
+
         public override void OnRenderFrame(FrameEventArgs args)
         {
             if (_window.IsKeyDown(Keys.End)) _totalTime += (float)args.Time;
-            //OnDFUpdate();
+
+            if (executionTimes.Count < 100 && runBenchmark) Benchmark();
+            else if (executionTimes.Count >= 100) Console.WriteLine($"Average Execution Time: {executionTimes.Average()} ns");
+
 
             //Clear the window and the depth buffer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -355,6 +374,7 @@ namespace OpenTkVoxelEngine
         {
             if (!_window.IsKeyDown(Keys.LeftAlt)) return;
             ImGui.Begin("Marching Cubes Noise Variables");
+            ImGui.Checkbox("Run Benchmark", ref runBenchmark);
             ImGui.Text("Height Map");
             if (ImGui.DragInt("HeightMap seed", ref _heightMapNoiseVariables.seed, 1)) OnDFUpdate();
             if (ImGui.DragInt("HeightMap numLayers", ref _heightMapNoiseVariables.NumLayers, 1, 0, 8)) OnDFUpdate();

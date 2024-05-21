@@ -143,7 +143,7 @@ void main()
 	}
 
 	//vec3 center = vertexCount / 2.0;
-	//float value = 1 / length(center - id);
+	//float value = 64.0 / length(center - id);
 
 //float value = 0;
 
@@ -151,6 +151,10 @@ void main()
 //	value = 1;
 //}
 
+
+//if(id.y <= 0){
+//	value = .5;
+//}
 	points[index] = value;
 	
 }

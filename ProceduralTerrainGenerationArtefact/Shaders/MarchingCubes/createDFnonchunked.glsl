@@ -126,8 +126,6 @@ void main()
 		return;
 	}
 
-	if(id.y > 128) return;
-
 	int index = id.y * vertexCount.x * vertexCount.z +  id.z * vertexCount.x + id.x;
 
 	float groundLevel = id.y / (0.5 * vertexCount.y);
@@ -138,9 +136,14 @@ void main()
 	if(id.x == 0 || id.x == vertexCount.x - 1 || id.z == 0 || id.z == vertexCount.z - 1 || id.y == 0){
 		value = 0;
 	}
-	vec3 center = vertexCount / 2.0;
-	value = 30.0 / length(center - id);
 
+	//vec3 center = vertexCount / 2.0;
+	//value = 64.0 / length(center - id);
+
+
+	///if(id.y == 0){
+	//	value = 1;
+	//}
 
 
 	points[index] = value;

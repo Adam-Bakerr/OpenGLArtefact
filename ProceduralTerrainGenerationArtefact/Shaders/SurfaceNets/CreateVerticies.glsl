@@ -104,7 +104,7 @@ void main()
 
 		//Check to see if any of the contoruing points contain a 0 component
 		if (NoZeroComponents(value0.Pos.xyz) && NoZeroComponents(value1.Pos.xyz) && NoZeroComponents(value2.Pos.xyz) && NoZeroComponents(value3.Pos.xyz)){
-			int densityIndex = GetIndex(k2);
+			int densityIndex = v2;
 			//Check if the point is inside or outside the surface
 			//This is used to adjust the winding of the triangles we are creating
 			if (points[densityIndex] >= surfaceLevel)

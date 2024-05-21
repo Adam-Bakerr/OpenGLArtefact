@@ -142,6 +142,7 @@ void main()
 	float groundLevel = id.y / (0.5 * vertexCount.y);
 	float value = groundLevel + max(.2,fbm(id + (chunkPosition / resolution)));
 
+
 	points[index] = value;
 	
 

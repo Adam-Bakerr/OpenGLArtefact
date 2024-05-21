@@ -31,7 +31,7 @@ namespace OpenTkVoxelEngine
     internal class HydraulicErosion : IScene
     {
         //Grid Definitions
-        Vector2i _gridVertexCount = new Vector2i(1024, 1024);
+        Vector2i _gridVertexCount = new Vector2i(512, 512);
         Vector2 _gridDimensions = new Vector2(25, 25);
         Vector2 Resolution() => _gridDimensions / _gridVertexCount;
         int VertexCount() => _gridVertexCount.X * _gridVertexCount.Y;
@@ -189,6 +189,21 @@ namespace OpenTkVoxelEngine
             }
         }
 
+        bool runBenchmark = false;
+        List<double> executionTimes = new();
+
+        public void Benchmark()
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+
+            //Run ALl The Shaders
+            UpdateMesh();
+
+            watch.Stop();
+
+            executionTimes.Add(watch.Elapsed.TotalNanoseconds);
+        }
+
         public override void OnRenderFrame(FrameEventArgs args)
         {
             //Time The Amount of time all computes take to run
@@ -199,6 +214,10 @@ namespace OpenTkVoxelEngine
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             totalTime += (float)args.Time;
             LightPos = new Vector3(0, 5f + (float)Math.Sin(totalTime) * 5f, 0f);
+
+            if (executionTimes.Count < 100 && runBenchmark) Benchmark();
+            else if (executionTimes.Count >= 100) Console.WriteLine($"Average Execution Time: {executionTimes.Average()} ns");
+
 
             //Use our terrain material
             _terrainShader.Use();
@@ -717,6 +736,7 @@ namespace OpenTkVoxelEngine
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(900, _window.ClientSize.Y));
             ImGui.SetNextItemWidth(900);
             ImGui.Begin("Settings", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoBackground);
+            ImGui.Checkbox("Run Benchmark", ref runBenchmark);
             ImGui.Text("Height Map Settings");
             ImGui.SetWindowFontScale(.95f);
             if (ImGui.DragInt("HeightMap seed", ref _noiseVariables.seed, 1)) UpdateHeightmapNoiseVariables();
